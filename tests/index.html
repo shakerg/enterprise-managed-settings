@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>settings-core tests</title>
+  <meta name="color-scheme" content="light dark">
+  <style>
+    body { font: 14px/1.5 ui-sans-serif, system-ui, sans-serif; padding: 1.5rem; }
+    .pass { color: #16a34a; } .fail { color: #dc2626; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>settings-core tests</h1>
+  <ul id="out"></ul>
+  <p id="summary"></p>
+  <script src="../js/settings-core.js"></script>
+  <script>
+    // Minimal browser shims for node:test and node:assert/strict.
+    const results = [];
+    window.test = (name, fn) => {
+      try { fn(); results.push({ name, ok: true }); }
+      catch (e) { results.push({ name, ok: false, err: e.message }); }
+    };
+    const canon = (v) => JSON.stringify(v, (k, x) => (x && typeof x === "object" && !Array.isArray(x)
+      ? Object.keys(x).sort().reduce((o, key) => ((o[key] = x[key]), o), {}) : x));
+    window.assert = {
+      equal: (a, b, m) => { if (a !== b) throw new Error(m || `${a} !== ${b}`); },
+      ok: (v, m) => { if (!v) throw new Error(m || "expected truthy"); },
+      deepEqual: (a, b, m) => {
+        if (canon(a) !== canon(b)) throw new Error((m ? m + ": " : "") + `\nactual:   ${canon(a)}\nexpected: ${canon(b)}`);
+      },
+    };
+  </script>
+  <script src="settings-core.test.js"></script>
+  <script>
+    const out = document.getElementById("out");
+    results.forEach((r) => {
+      const li = document.createElement("li");
+      li.className = r.ok ? "pass" : "fail";
+      li.textContent = (r.ok ? "✔ " : "✘ ") + r.name + (r.err ? "\n" + r.err : "");
+      out.appendChild(li);
+    });
+    const failed = results.filter((r) => !r.ok).length;
+    document.getElementById("summary").textContent = `${results.length - failed}/${results.length} passed`;
+    window.__testResults = { total: results.length, failed, results };
+  </script>
+</body>
+</html>
