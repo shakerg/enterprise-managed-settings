@@ -1,0 +1,49 @@
+name: Update model list
+
+on:
+  schedule:
+    - cron: "17 13 * * *" # daily, 13:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+
+concurrency:
+  group: update-models
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Unit tests
+        run: node --test tests/settings-core.test.js
+
+      - name: Regenerate js/models-snapshot.js
+        id: models
+        run: node scripts/update-models.js
+
+      - name: Commit and redeploy if changed
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SUMMARY: ${{ steps.models.outputs.summary }}
+        run: |
+          if git diff --quiet -- js/models-snapshot.js; then
+            echo "Model list unchanged."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add js/models-snapshot.js
+          git commit -m "Update supported models snapshot" -m "$SUMMARY"
+          git push
+          # Pushes made with GITHUB_TOKEN don't always trigger a Pages build; request one explicitly.
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/pages/builds" --silent || echo "::warning::Could not request a Pages build"
+          echo "### Model list updated" >> "$GITHUB_STEP_SUMMARY"
+          echo "$SUMMARY" >> "$GITHUB_STEP_SUMMARY"

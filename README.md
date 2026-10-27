@@ -31,4 +31,17 @@ Progress and theme (system / light / dark) are saved in `localStorage`. Nothing 
 ## Tests
 
 - Browser: open `tests/index.html`.
-- Node: `node --test tests/`
+- Node: `node --test tests/settings-core.test.js` (also runs in CI on every push and PR)
+
+## Keeping it current
+
+Two scheduled GitHub Actions workflows run daily:
+
+| Workflow | What it does |
+| --- | --- |
+| [`update-models.yml`](.github/workflows/update-models.yml) | Regenerates `js/models-snapshot.js` from the Supported AI models docs page, commits it if the list changed, and redeploys Pages. |
+| [`docs-watch.yml`](.github/workflows/docs-watch.yml) | Compares the managed settings reference with `docs-baseline/enterprise-managed-settings.md`. When it changes, opens a `docs-change` issue with the diff and assigns it to the Copilot coding agent, which opens a PR. |
+
+Both can also be run manually from the **Actions** tab.
+
+To let `docs-watch.yml` assign issues to Copilot, add a repository secret named `COPILOT_ASSIGN_TOKEN` containing a fine-grained personal access token for this repository with read and write access to **Issues**, **Pull requests**, **Contents**, and **Actions**, and read access to **Metadata**. Without it, the issue is still opened and you can assign Copilot manually.

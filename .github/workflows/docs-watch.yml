@@ -1,0 +1,99 @@
+name: Watch managed settings reference
+
+on:
+  schedule:
+    - cron: "43 13 * * *" # daily, 13:43 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: docs-watch
+  cancel-in-progress: false
+
+env:
+  BASELINE: docs-baseline/enterprise-managed-settings.md
+  DOCS_URL: https://docs.github.com/en/enterprise-cloud@latest/copilot/reference/enterprise-administrators/enterprise-managed-settings
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Fetch current reference
+        run: node scripts/fetch-reference.js > "$RUNNER_TEMP/latest.md"
+
+      - name: Compare with baseline
+        id: diff
+        run: |
+          mkdir -p "$(dirname "$BASELINE")"
+          if [ ! -f "$BASELINE" ]; then
+            echo "status=new" >> "$GITHUB_OUTPUT"
+          elif diff -u --label baseline --label latest "$BASELINE" "$RUNNER_TEMP/latest.md" > "$RUNNER_TEMP/changes.diff"; then
+            echo "status=same" >> "$GITHUB_OUTPUT"
+            echo "Reference unchanged."
+          else
+            echo "status=changed" >> "$GITHUB_OUTPUT"
+            echo "Reference changed: $(grep -c '^[+-][^+-]' "$RUNNER_TEMP/changes.diff") lines differ."
+          fi
+
+      - name: Open issue for Copilot
+        id: issue
+        if: steps.diff.outputs.status == 'changed'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh label create docs-change --color 7c3aed --description "Upstream docs changed" --force >/dev/null
+          {
+            echo "The [enterprise managed settings reference]($DOCS_URL) changed. Update the builder so it matches the new docs."
+            echo
+            echo "## What to do"
+            echo "- Review the diff below and decide which changes affect \`managed-settings.json\` (new or removed keys, allowed values, overridable support, client support, minimum versions, validation rules)."
+            echo "- Update \`js/settings-core.js\` (state, build, parse, validate) and \`js/app.js\` (wizard UI, client support chips, help text)."
+            echo "- Add or update tests in \`tests/settings-core.test.js\` and make sure \`node --test tests/settings-core.test.js\` passes."
+            echo "- Update \`README.md\` if behavior changes."
+            echo "- If the diff is only wording or formatting with no effect on the tool, say so in the PR and make no code changes."
+            echo
+            echo "The baseline in \`$BASELINE\` has already been updated to the latest version."
+            echo
+            echo "## Diff"
+            echo '```diff'
+            head -c 55000 "$RUNNER_TEMP/changes.diff"
+            echo
+            echo '```'
+          } > "$RUNNER_TEMP/body.md"
+          url=$(gh issue create \
+            --title "Docs changed: enterprise managed settings reference ($(date -u +%F))" \
+            --label docs-change \
+            --body-file "$RUNNER_TEMP/body.md")
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Opened $url" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Assign Copilot coding agent
+        if: steps.issue.outputs.url != ''
+        env:
+          # GITHUB_TOKEN can't assign Copilot; this needs a user token (see README).
+          GH_TOKEN: ${{ secrets.COPILOT_ASSIGN_TOKEN }}
+          URL: ${{ steps.issue.outputs.url }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::warning::COPILOT_ASSIGN_TOKEN is not set; assign the issue to Copilot manually: $URL"
+            exit 0
+          fi
+          gh issue edit "$URL" --add-assignee "@copilot" || echo "::warning::Could not assign Copilot to $URL"
+
+      - name: Update baseline
+        if: steps.diff.outputs.status != 'same'
+        run: |
+          cp "$RUNNER_TEMP/latest.md" "$BASELINE"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$BASELINE"
+          git commit -m "Update managed settings reference baseline"
+          git push
