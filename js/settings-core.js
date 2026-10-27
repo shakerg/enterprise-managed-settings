@@ -562,6 +562,45 @@
     return s;
   }
 
+  // ------------------------------------------------------------------ models
+  // Copilot model IDs are the docs display names lower-cased and hyphenated,
+  // e.g. "Claude Sonnet 4.6" -> "claude-sonnet-4.6", "GPT-5.3-Codex" -> "gpt-5.3-codex".
+  function modelIdFromName(name) {
+    let n = String(name).replace(/\[\^[^\]]*\]/g, "");
+    const fast = /\(fast mode\)/i.test(n);
+    n = n.replace(/\([^)]*\)/g, "").trim();
+    const id = n.toLowerCase().replace(/[^a-z0-9.]+/g, "-").replace(/^-+|-+$/g, "");
+    return fast ? `${id}-fast` : id;
+  }
+
+  // Parses the "Supported AI models in Copilot" table from the docs markdown
+  // (https://docs.github.com/api/article/body?pathname=/en/copilot/reference/ai-models/supported-models).
+  function parseModelsDoc(md) {
+    const lines = String(md).split(/\r?\n/);
+    const start = lines.findIndex((l) => /^##\s+Supported AI models in Copilot\s*$/i.test(l));
+    if (start < 0) return [];
+    const out = [];
+    const seen = new Set();
+    let header = null;
+    for (let i = start + 1; i < lines.length && !/^##\s/.test(lines[i]); i++) {
+      const line = lines[i].trim();
+      if (!line.startsWith("|")) continue;
+      const cells = line.replace(/^\||\|$/g, "").split("|").map((c) => c.trim());
+      if (!header) {
+        header = cells.map((c) => c.toLowerCase());
+        continue;
+      }
+      if (!cells[0] || /^-+$/.test(cells[0])) continue;
+      const col = (re) => cells[header.findIndex((h) => re.test(h))] || "";
+      const name = cells[0].replace(/\[\^[^\]]*\]/g, "").trim();
+      const id = modelIdFromName(name);
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      out.push({ id, name, provider: col(/provider/), status: col(/status/) });
+    }
+    return out;
+  }
+
   return {
     UNSET,
     RULE_SELECTORS,
@@ -579,5 +618,7 @@
     parseCommand,
     formatCommand,
     parseSource,
+    modelIdFromName,
+    parseModelsDoc,
   };
 });

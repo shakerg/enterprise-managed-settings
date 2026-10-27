@@ -11,6 +11,7 @@ Or open `index.html` locally in a browser (no server or build step needed).
 
 1. Pick a starting point (Blank, Starter, Secure baseline, Locked down) or **Import** an existing file.
 2. Step through Models, Permissions, Features & access, Plugins, MCP servers, Sandbox, and Telemetry. Turn on **Manage** for settings you want to enforce; unmanaged settings are omitted.
+   The **Default model** pick list is loaded live from the [Supported AI models](https://docs.github.com/en/copilot/reference/ai-models/supported-models) docs page (cached for 24 hours, with a bundled snapshot in `js/models-snapshot.js` as an offline fallback). A custom model ID can also be entered.
 3. Watch the live preview and validation, then **Download** or **Copy** the file.
 4. Commit it to `copilot/managed-settings.json` in your enterprise's `.github-private` repository.
 
@@ -22,7 +23,8 @@ Progress and theme (system / light / dark) are saved in `localStorage`. Nothing 
 | --- | --- |
 | `index.html` | App shell |
 | `css/styles.css` | Design tokens (blue/purple palette, light & dark themes) and components |
-| `js/settings-core.js` | Pure logic: state → JSON, JSON → state, validation, presets |
+| `js/settings-core.js` | Pure logic: state → JSON, JSON → state, validation, presets, model list parsing |
+| `js/models-snapshot.js` | Offline fallback list of supported models |
 | `js/app.js` | Wizard UI |
 | `tests/` | Unit tests for `settings-core.js` |
 

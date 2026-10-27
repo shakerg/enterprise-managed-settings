@@ -118,3 +118,35 @@ test("command parsing honors quotes", () => {
   assert.deepEqual(EMS.parseCommand('node "my server.js" --flag'), ["node", "my server.js", "--flag"]);
   assert.equal(EMS.formatCommand(["node", "my server.js"]), 'node "my server.js"');
 });
+
+test("model IDs are derived from docs display names", () => {
+  assert.equal(EMS.modelIdFromName("Claude Sonnet 4.6"), "claude-sonnet-4.6");
+  assert.equal(EMS.modelIdFromName("GPT-5.3-Codex"), "gpt-5.3-codex");
+  assert.equal(EMS.modelIdFromName("GPT-5.4 nano[^gpt54nano]"), "gpt-5.4-nano");
+  assert.equal(EMS.modelIdFromName("MAI-Code-1.1-Flash"), "mai-code-1.1-flash");
+  assert.equal(EMS.modelIdFromName("Claude Opus 4.8 (fast mode) (preview)"), "claude-opus-4.8-fast");
+});
+
+test("supported models table is parsed from docs markdown", () => {
+  const md = [
+    "# Supported AI models in GitHub Copilot",
+    "## Supported AI models in Copilot",
+    "<div>",
+    "| Model name | Provider | Release status |",
+    "| ---------- | -------- | -------------- |",
+    "|            |          |                |",
+    "| GPT-5.3-Codex | OpenAI | GA |",
+    "|            |          |                |",
+    "| Claude Haiku 4.5[^x] | Anthropic | Public preview |",
+    "</div>",
+    "## Supported AI models in Auto model selection",
+    "| Model name | Provider |",
+    "| --- | --- |",
+    "| Not Included | Nobody |",
+  ].join("\n");
+  assert.deepEqual(EMS.parseModelsDoc(md), [
+    { id: "gpt-5.3-codex", name: "GPT-5.3-Codex", provider: "OpenAI", status: "GA" },
+    { id: "claude-haiku-4.5", name: "Claude Haiku 4.5", provider: "Anthropic", status: "Public preview" },
+  ]);
+  assert.deepEqual(EMS.parseModelsDoc("# nothing here"), []);
+});

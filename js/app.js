@@ -19,6 +19,47 @@
   function safeGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
   function safeSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* storage unavailable */ } }
 
+  // ------------------------------------------------------------------ model catalog
+  const MODELS_KEY = "ems-models-v1";
+  const MODELS_TTL = 24 * 60 * 60 * 1000;
+  const MODELS_DOC_API = "https://docs.github.com/api/article/body?pathname=/en/copilot/reference/ai-models/supported-models";
+  const MODELS_DOC = "https://docs.github.com/en/copilot/reference/ai-models/supported-models";
+  let modelCustom = false;
+  let models = loadModels();
+
+  function loadModels() {
+    try {
+      const c = JSON.parse(safeGet(MODELS_KEY));
+      if (c && Array.isArray(c.models) && c.models.length) return { ...c, source: "docs" };
+    } catch (e) { /* ignore bad cache */ }
+    const snap = window.EMS_MODELS_SNAPSHOT || { fetchedAt: null, models: [] };
+    return { models: snap.models, fetchedAt: snap.fetchedAt, source: "snapshot" };
+  }
+
+  async function refreshModels(force) {
+    if (models.loading) return;
+    const age = models.source === "docs" ? Date.now() - Date.parse(models.fetchedAt) : Infinity;
+    if (!force && age < MODELS_TTL) return;
+    models.loading = true;
+    models.error = null;
+    if (STEPS[step].id === "model") renderMain();
+    try {
+      const res = await fetch(MODELS_DOC_API, { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const list = EMS.parseModelsDoc(await res.text());
+      if (!list.length) throw new Error("No models found in the docs page");
+      models = { models: list, fetchedAt: new Date().toISOString(), source: "docs" };
+      safeSet(MODELS_KEY, JSON.stringify(models));
+      if (force) toast(`Loaded ${list.length} models from GitHub Docs`);
+    } catch (e) {
+      models.error = e.message || String(e);
+      if (force) toast("Couldn't refresh models — using saved list");
+    } finally {
+      models.loading = false;
+      if (STEPS[step].id === "model") renderMain();
+    }
+  }
+
   function loadState() {
     const raw = safeGet(STORE_KEY);
     if (!raw) return EMS.defaultState();
@@ -294,11 +335,10 @@
       ${card({
         title: "Default model",
         key: "model",
-        desc: 'Use <code>auto</code> to let Copilot pick the best model from your enterprise\'s allowed models, or enter a specific model identifier.',
+        desc: 'Use <code>auto</code> to let Copilot pick the best model from your enterprise\'s allowed models, or pick a specific model from the latest supported list.',
         sup: "model",
         toggle: { path: "model.managed", checked: m.managed },
-        body: `${textField("model.value", { label: "Model", placeholder: "auto", mono: true, list: "model-list", hint: 'In team files, <code>"unmanaged"</code> removes the default for that team.' })}
-          <datalist id="model-list"><option value="auto"></option></datalist>`,
+        body: modelPicker(),
         overridable: { path: "model.overridable", checked: m.overridable },
       })}
       ${card({
@@ -320,6 +360,38 @@
         overridable: { path: "autoTier.overridable", checked: t.overridable },
       })}
     `;
+  }
+
+  function modelPicker() {
+    const v = state.model.value;
+    const list = models.models || [];
+    const known = v === "auto" || list.some((m) => m.id === v);
+    const custom = modelCustom || (v !== "" && !known);
+    const sel = custom ? "__custom" : v;
+    const opt = (val, label) => `<option value="${esc(val)}" ${val === sel ? "selected" : ""}>${esc(label)}</option>`;
+    const groups = {};
+    list.forEach((m) => (groups[m.provider || "Other"] = groups[m.provider || "Other"] || []).push(m));
+    const id = nid();
+    const when = models.fetchedAt ? new Date(models.fetchedAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "unknown";
+    const srcText = models.loading
+      ? "Fetching the latest list from GitHub Docs…"
+      : `${list.length} models from ${models.source === "docs" ? "GitHub Docs" : "the bundled snapshot"} · updated ${esc(when)}${models.error ? ` · <span class="text-warn">refresh failed (${esc(models.error)})</span>` : ""} ·`;
+    return `<div class="field">
+        <label class="label" for="${id}">Model</label>
+        <select id="${id}" class="select" data-role="model-pick" data-fk="model.pick">
+          ${opt("", "Select a model…")}
+          ${opt("auto", "auto — let Copilot choose (recommended)")}
+          ${Object.keys(groups)
+            .map((p) => `<optgroup label="${esc(p)}">${groups[p].map((m) => opt(m.id, `${m.name}${m.status && m.status !== "GA" ? ` · ${m.status}` : ""}  (${m.id})`)).join("")}</optgroup>`)
+            .join("")}
+          ${opt("__custom", "Custom model ID…")}
+        </select>
+        <div class="hint model-source">${srcText}
+          <button type="button" class="link-btn" data-action="refresh-models" ${models.loading ? "disabled" : ""}>Refresh</button> ·
+          <a href="${MODELS_DOC}" target="_blank" rel="noopener">Supported models ${icon("ext")}</a></div>
+      </div>
+      ${custom ? textField("model.value", { label: "Custom model ID", placeholder: "e.g. claude-sonnet-4.6", mono: true, hint: !v || known ? "" : "This ID isn't in the current supported models list. Check that it's spelled correctly and enabled for your enterprise." }) : ""}
+      <p class="hint">IDs are derived from the model names in the docs. Models must also be enabled by your enterprise's model policies. In team files, <code>"unmanaged"</code> removes the default for that team.</p>`;
   }
 
   function ruleCard(kind, title, desc) {
@@ -836,6 +908,19 @@
 
   document.addEventListener("change", (e) => {
     const el = e.target;
+    if (el.dataset && el.dataset.role === "model-pick") {
+      if (el.value === "__custom") {
+        modelCustom = true;
+        if (state.model.value === "auto" || (models.models || []).some((m) => m.id === state.model.value)) state.model.value = "";
+        pendingFocus = "model.value";
+      } else {
+        modelCustom = false;
+        state.model.value = el.value;
+      }
+      if (el.value) state.model.managed = true;
+      commit(true);
+      return;
+    }
     if (el.dataset && el.dataset.role === "sel") {
       const input = el.closest("[data-composer]").querySelector('[data-role="val"]');
       input.placeholder = RULE_PLACEHOLDER[el.value] || "";
@@ -915,11 +1000,12 @@
         commit(true);
       },
       copy: copyJson,
+      "refresh-models": () => refreshModels(true),
       download: downloadJson,
       theme: cycleTheme,
       reset: () => {
         if (!confirm("Clear all settings and start over?")) return;
-        state = EMS.defaultState();
+        state = EMS.defaultState(); modelCustom = false;
         commit(false);
         goto(0);
         toast("Configuration reset");
@@ -948,7 +1034,7 @@
 
   function applyPreset(name) {
     if (!isEmptyConfig() && !confirm("Replace your current configuration with this starting point?")) return;
-    state = name === "blank" ? EMS.defaultState() : EMS.preset(name);
+    state = name === "blank" ? EMS.defaultState() : EMS.preset(name); modelCustom = false;
     commit(false);
     goto(1);
     toast(name === "blank" ? "Starting from a blank file" : "Preset applied. Review each step");
@@ -964,7 +1050,7 @@
 
   function doImport() {
     try {
-      state = EMS.parseSettings($("#import-text").value);
+      state = EMS.parseSettings($("#import-text").value); modelCustom = false;
       $("#import-dialog").close();
       commit(false);
       goto(1);
@@ -1055,4 +1141,5 @@
   // ------------------------------------------------------------------ init
   applyTheme(safeGet(THEME_KEY) || "system");
   render();
+  refreshModels(false);
 })();
