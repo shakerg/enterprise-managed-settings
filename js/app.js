@@ -5,6 +5,7 @@
   const STORE_KEY = "ems-state-v1";
   const STEP_KEY = "ems-step-v1";
   const THEME_KEY = "ems-theme";
+  const POLICY_NOTES_KEY = "ems-policy-notes-dismissed-v1";
   const DOCS = "https://docs.github.com/en/enterprise-cloud@latest/copilot/reference/enterprise-administrators/enterprise-managed-settings";
   const DOCS_START = "https://docs.github.com/en/enterprise-cloud@latest/copilot/how-tos/administer-copilot/manage-for-enterprise/use-managed-settings/get-started";
   const DOCS_DEPLOY = "https://docs.github.com/en/enterprise-cloud@latest/copilot/how-tos/administer-copilot/manage-for-enterprise/use-managed-settings/deploy-managed-settings";
@@ -18,6 +19,17 @@
 
   function safeGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
   function safeSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* storage unavailable */ } }
+  function loadDismissedPolicyNotes() {
+    try {
+      const saved = JSON.parse(safeGet(POLICY_NOTES_KEY) || "[]");
+      if (!Array.isArray(saved)) return [];
+      const valid = new Set(EMS.POLICY_GUIDANCE.map((policy) => policy.id));
+      return [...new Set(saved.filter((id) => valid.has(id)))];
+    } catch (e) {
+      return [];
+    }
+  }
+  let dismissedPolicyNotes = loadDismissedPolicyNotes();
 
   // ------------------------------------------------------------------ model catalog
   const MODELS_KEY = "ems-models-v1";
@@ -191,6 +203,19 @@
     return `<div class="callout ${level}" role="${level === "error" ? "alert" : "note"}">${icon(level)}<div>${html}</div></div>`;
   }
 
+  function policyNotesHtml(stepId) {
+    const settings = EMS.buildSettings(state);
+    return EMS.relatedPolicies(settings)
+      .filter((policy) => policy.steps.includes(stepId) && !dismissedPolicyNotes.includes(policy.id))
+      .map((policy) => `<aside class="callout info policy-note" data-policy-id="${esc(policy.id)}" role="note">
+        ${icon("info")}
+        <div class="policy-note-content"><strong>${esc(policy.name)} policy</strong> · ${esc(policy.note)}
+          <a href="${esc(policy.docs)}" target="_blank" rel="noopener">Policy docs</a>
+        </div>
+        <button type="button" class="btn btn-icon btn-ghost policy-note-dismiss" data-action="dismiss-policy-note" data-policy-id="${esc(policy.id)}" aria-label="Dismiss ${esc(policy.name)} policy note" title="Dismiss">${icon("x")}</button>
+      </aside>`).join("");
+  }
+
   function switchCtl(path, checked, label, { rerender = true, muted = false } = {}) {
     return `<label class="switch"><input type="checkbox" data-path="${esc(path)}" data-fk="${esc(path)}" ${checked ? "checked" : ""} ${rerender ? "data-rerender" : ""}><span class="track"></span><span class="${muted ? "switch-label-muted" : ""}">${label}</span></label>`;
   }
@@ -352,6 +377,7 @@
     return `
       ${header(null, "Models", "Set the default model and Auto routing tier for new conversations. Users can still pick a different model per conversation.")}
       ${stepIssuesHtml("model")}
+      ${policyNotesHtml("model")}
       ${card({
         title: "Default model",
         key: "model",
@@ -446,6 +472,7 @@
     return `
       ${header(null, "Permissions", "Control approval modes and which operations agents can perform. Rules apply with <strong>deny &gt; ask &gt; allow</strong> precedence.")}
       ${stepIssuesHtml("permissions")}
+      ${policyNotesHtml("permissions")}
       ${card({
         title: "Disable bypass mode",
         key: "permissions.disableBypassPermissionsMode",
@@ -622,6 +649,7 @@
     return `
       ${header(null, "MCP servers", "Allowlist and denylist Model Context Protocol servers. Deny always wins over allow. First-party Copilot servers can't be blocked.")}
       ${stepIssuesHtml("mcp")}
+      ${policyNotesHtml("mcp")}
       ${card({
         title: "Matcher reference",
         body: `<div style="display:grid; gap:6px; font-size: var(--fs-sm); color: var(--text-muted)">
@@ -703,6 +731,7 @@
     return `
       ${header(null, "Local sandbox", "Enforce minimum sandbox restrictions for command execution, filesystem and network access, credentials, and local MCP/LSP servers.")}
       ${stepIssuesHtml("sandbox")}
+      ${policyNotesHtml("sandbox")}
       ${card({
         title: "Sandbox policy",
         key: "sandbox",
@@ -767,6 +796,7 @@
     const count = (l) => issues.filter((i) => i.level === l).length;
     const keys = countLeafKeys(built);
     const teams = EMS.hasOverridable(state);
+    const policies = EMS.relatedPolicies(built);
     const stepIndex = (id) => STEPS.findIndex((s) => s.id === id);
     return `
       ${header(null, "Review &amp; export", "Check for issues, then download or copy your file.")}
@@ -776,6 +806,15 @@
         <div class="stat"><div class="stat-num">${count("error")}</div><div class="stat-label">Errors</div></div>
         <div class="stat"><div class="stat-num">${count("warning")}</div><div class="stat-label">Warnings</div></div>
       </div>
+      ${policies.length ? card({
+        title: "Related policies",
+        desc: "These Copilot policies can affect whether your managed settings are useful to users. For users licensed through multiple organizations in one enterprise, these policies use the least restrictive organization.",
+        body: `<ul class="policy-list">${policies.map((policy) => `<li>
+          <strong>${esc(policy.name)}</strong>
+          <span class="policy-resolution">Conflict resolution: least restrictive organization</span>
+          <p>${esc(policy.note)} <a href="${esc(policy.docs)}" target="_blank" rel="noopener">Policy docs</a></p>
+        </li>`).join("")}</ul>`,
+      }) : ""}
       ${card({
         title: "Validation",
         body: issues.length
@@ -916,6 +955,14 @@
     renderWhatsNew();
   }
 
+  function dismissPolicyNote(id) {
+    if (!EMS.POLICY_GUIDANCE.some((policy) => policy.id === id)) return;
+    dismissedPolicyNotes = [...new Set([...dismissedPolicyNotes, id])];
+    safeSet(POLICY_NOTES_KEY, JSON.stringify(dismissedPolicyNotes));
+    const note = document.querySelector(`[data-policy-id="${CSS.escape(id)}"].policy-note`);
+    if (note) note.remove();
+  }
+
   function highlight(json) {
     return esc(json).replace(
       /(&quot;(?:\\.|[^&\\]|&(?!quot;))*?&quot;)(\s*:)?|\b(true|false|null)\b|(-?\d+(?:\.\d+)?)|([{}\[\],])/g,
@@ -1016,6 +1063,7 @@
     const actions = {
       goto: () => goto(Number(btn.dataset.step)),
       "dismiss-whats-new": dismissWhatsNew,
+      "dismiss-policy-note": () => dismissPolicyNote(btn.dataset.policyId),
       next: () => goto(step + 1),
       prev: () => goto(step - 1),
       preset: () => applyPreset(btn.dataset.preset),

@@ -370,6 +370,13 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .callout.warning svg { color: var(--warn); }
 .callout.error { background: var(--err-soft); border-color: color-mix(in srgb, var(--err) 35%, transparent); }
 .callout.error svg { color: var(--err); }
+.policy-note { align-items: flex-start; margin-bottom: 12px; padding: 8px 10px; }
+.policy-note-content { flex: 1; min-width: 0; }
+.policy-note-dismiss { flex: none; margin: -5px -5px 0 0; }
+.policy-list { display: grid; gap: 12px; margin: 0; padding-left: 20px; font-size: var(--fs-sm); }
+.policy-list li { padding-left: 2px; }
+.policy-list p { color: var(--text-muted); margin-top: 3px; }
+.policy-resolution { display: block; color: var(--text-faint); font-size: var(--fs-xs); }
 
 /* Welcome */
 .hero {
