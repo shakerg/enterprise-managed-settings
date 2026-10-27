@@ -45,3 +45,5 @@ Two scheduled GitHub Actions workflows run daily:
 Both can also be run manually from the **Actions** tab.
 
 To let `docs-watch.yml` assign issues to Copilot, add a repository secret named `COPILOT_ASSIGN_TOKEN` containing a fine-grained personal access token for this repository with read and write access to **Issues**, **Pull requests**, **Contents**, and **Actions**, and read access to **Metadata**. Without it, the issue is still opened and you can assign Copilot manually.
+
+To check the token after adding or rotating it, run `gh workflow run docs-watch.yml -f check_token=true`. This confirms Copilot can be assigned without opening an issue.
