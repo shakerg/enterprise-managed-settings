@@ -17,6 +17,48 @@
   const MARKETPLACE_SOURCES = ["github", "git", "directory"];
   const STRICT_SOURCES = ["github", "git", "url", "npm", "file", "directory", "hostPattern", "pathPattern"];
   const MCP_MATCHERS = ["serverUrl", "serverCommand", "serverName"];
+  const POLICY_GUIDANCE = [
+    {
+      id: "models",
+      name: "Model availability",
+      steps: ["model"],
+      settings: ["model"],
+      resolution: "least-restrictive",
+      note: "A managed default model does not grant model access; the selected model must also be enabled by your enterprise or organization model policies.",
+      docs: "https://docs.github.com/en/enterprise-cloud@latest/copilot/concepts/enterprise/policies",
+    },
+    {
+      id: "mcp",
+      name: "MCP servers in Copilot",
+      steps: ["mcp"],
+      settings: ["allowedMcpServers", "deniedMcpServers"],
+      resolution: "least-restrictive",
+      note: "These rules only govern MCP use when this policy is enabled. If any organization licensing a user enables it, MCP servers are available for that user everywhere.",
+      docs: "https://docs.github.com/en/enterprise-cloud@latest/copilot/reference/enterprise-administrators/policy-conflicts",
+    },
+    {
+      id: "cli",
+      name: "Copilot CLI",
+      steps: ["permissions", "sandbox"],
+      settings: ["permissions", "sandbox"],
+      resolution: "least-restrictive",
+      note: "Sandbox and permission settings apply to Copilot CLI and VS Code Agent Host where supported. The Copilot CLI policy controls CLI availability; if any organization licensing a user enables it, it is enabled for that user everywhere.",
+      docs: "https://docs.github.com/en/enterprise-cloud@latest/copilot/reference/enterprise-administrators/policy-conflicts",
+    },
+    {
+      id: "copilot-app",
+      name: "The GitHub Copilot app",
+      steps: ["permissions", "sandbox"],
+      settings: ["permissions", "sandbox"],
+      resolution: "least-restrictive",
+      note: "Sandbox and permission settings also apply in the GitHub Copilot app where supported. If any organization licensing a user enables the app, it is enabled for that user everywhere.",
+      docs: "https://docs.github.com/en/enterprise-cloud@latest/copilot/reference/enterprise-administrators/policy-conflicts",
+    },
+  ];
+
+  function relatedPolicies(settings) {
+    return POLICY_GUIDANCE.filter((policy) => policy.settings.some((key) => Object.prototype.hasOwnProperty.call(settings || {}, key)));
+  }
 
   function defaultState() {
     return {
@@ -651,6 +693,8 @@
     SOURCE_FIELDS,
     SOURCE_REQUIRED,
     MCP_MATCHERS,
+    POLICY_GUIDANCE,
+    relatedPolicies,
     defaultState,
     buildSettings,
     parseSettings,

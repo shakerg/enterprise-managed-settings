@@ -46,6 +46,20 @@ test("default state produces an empty object", () => {
   assert.deepEqual(EMS.buildSettings(EMS.defaultState()), {});
 });
 
+test("related policies include only dependencies of emitted settings", () => {
+  const state = EMS.defaultState();
+  assert.deepEqual(EMS.relatedPolicies(EMS.buildSettings(state)), []);
+
+  state.model.managed = true;
+  state.allowedMcpServers.managed = true;
+  state.permissions.deny = { managed: true, overridable: false, rules: ["Shell(rm -rf *)"] };
+  state.sandbox.managed = true;
+  const settings = EMS.buildSettings(state);
+  assert.deepEqual(EMS.relatedPolicies(settings).map((policy) => policy.id), ["models", "mcp", "cli", "copilot-app"]);
+  assert.deepEqual(EMS.buildSettings(state), settings, "policy guidance must not change generated JSON");
+  assert.ok(EMS.relatedPolicies(settings).every((policy) => policy.resolution === "least-restrictive"));
+});
+
 test("docs example round-trips through parse -> build", () => {
   const out = EMS.buildSettings(EMS.parseSettings(DOCS_EXAMPLE));
   assert.deepEqual(out, DOCS_EXAMPLE);
