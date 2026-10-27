@@ -1,4 +1,4 @@
-// Run with `node --test tests/` or open tests/index.html in a browser.
+// Run with `node --test tests/settings-core.test.js` or open tests/index.html in a browser.
 /* global window */
 const isNode = typeof window === "undefined";
 const test = isNode ? require("node:test") : window.test;
