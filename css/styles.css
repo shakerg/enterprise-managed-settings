@@ -153,6 +153,43 @@ body {
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
 }
+
+/* Hex grid backdrop: a gradient layer cut out by a hex-line tile and faded toward the center. */
+body::before, body::after {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  --hex: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100' viewBox='0 0 56 100'%3E%3Cpath d='M28 66L0 50V16L28 0l28 16v34L28 66zm0 0v34M28 0v-34' fill='none' stroke='%23000' stroke-width='1.1'/%3E%3C/svg%3E");
+  --fade: radial-gradient(ellipse 75% 70% at 50% 45%, transparent 25%, #000 100%);
+  -webkit-mask-image: var(--hex), var(--fade);
+          mask-image: var(--hex), var(--fade);
+  -webkit-mask-size: 56px 100px, 100% 100%;
+          mask-size: 56px 100px, 100% 100%;
+  -webkit-mask-composite: source-in;
+          mask-composite: intersect;
+}
+body::before {
+  background: linear-gradient(135deg, var(--blue-500), var(--indigo-500) 50%, var(--violet-600));
+  opacity: var(--hex-opacity, .22);
+}
+/* A brighter sweep that drifts across the grid. */
+body::after {
+  background: radial-gradient(600px 400px at var(--hx, 80%) var(--hy, 15%), var(--violet-400), transparent 70%),
+              radial-gradient(500px 360px at 15% 85%, var(--blue-400), transparent 70%);
+  opacity: var(--hex-glow, .35);
+  animation: hex-drift 18s ease-in-out infinite alternate;
+}
+@keyframes hex-drift {
+  0%   { --hx: 85%; --hy: 10%; }
+  50%  { --hx: 55%; --hy: 30%; }
+  100% { --hx: 20%; --hy: 15%; }
+}
+@property --hx { syntax: "<percentage>"; inherits: false; initial-value: 80%; }
+@property --hy { syntax: "<percentage>"; inherits: false; initial-value: 15%; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --hex-opacity: .38; --hex-glow: .6; }
+}
+:root[data-theme="dark"] { --hex-opacity: .38; --hex-glow: .6; }
+@media (prefers-reduced-motion: reduce) { body::after { animation: none; } }
+@media print { body::before, body::after { display: none; } }
 h1, h2, h3, h4 { margin: 0; line-height: 1.25; font-weight: 650; letter-spacing: -0.01em; }
 p { margin: 0; }
 a { color: var(--primary); text-underline-offset: 2px; }
