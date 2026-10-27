@@ -413,6 +413,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .preview-title { font-size: var(--fs-sm); font-weight: 650; display: flex; align-items: center; gap: 8px; }
 .preview-file { font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--text-faint); font-weight: 500; }
 .preview-actions { margin-left: auto; display: flex; gap: 4px; }
+.preview-mode { display: flex; gap: 2px; padding: 2px; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.preview-mode [aria-pressed="true"] { background: var(--primary-soft); color: var(--primary); }
 .status-pill { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 99px; }
 .status-pill.ok { background: color-mix(in srgb, var(--ok) 15%, transparent); color: var(--ok); }
 .status-pill.warn { background: var(--warn-soft); color: var(--warn); }
@@ -426,6 +428,13 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .code .n { color: var(--json-num); }
 .code .b { color: var(--json-bool); font-weight: 600; }
 .code .p { color: var(--json-punc); }
+.summary-preview { flex: 1; min-height: 120px; overflow: auto; padding: 14px 16px; background: var(--surface); font-size: var(--fs-sm); line-height: 1.6; }
+.summary-preview h2 { margin: 0 0 12px; font-size: var(--fs-md); }
+.summary-preview h3 { margin: 16px 0 6px; font-size: var(--fs-sm); }
+.summary-preview ul { margin: 0; padding-left: 20px; display: grid; gap: 5px; }
+.summary-preview li { padding-left: 2px; }
+.summary-preview code { font-family: var(--font-mono); font-size: .92em; color: var(--text); overflow-wrap: anywhere; }
+.summary-preview[hidden] { display: none; }
 .preview-foot { padding: 10px 14px; border-top: 1px solid var(--border); font-size: var(--fs-xs); color: var(--text-muted); display: flex; justify-content: space-between; }
 
 /* Issues */

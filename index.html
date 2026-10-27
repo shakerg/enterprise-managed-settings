@@ -63,7 +63,11 @@
             <span class="status-pill ok" id="status-pill">Valid</span>
           </div>
           <div class="preview-actions">
-            <button class="btn btn-icon btn-ghost" type="button" data-action="copy" title="Copy JSON" aria-label="Copy JSON">
+            <div class="preview-mode" role="group" aria-label="Preview format">
+              <button class="btn btn-sm btn-ghost" type="button" data-action="preview-mode" data-mode="json" aria-controls="json-preview summary-preview" aria-pressed="true">JSON</button>
+              <button class="btn btn-sm btn-ghost" type="button" data-action="preview-mode" data-mode="summary" aria-controls="json-preview summary-preview" aria-pressed="false">Summary</button>
+            </div>
+            <button class="btn btn-icon btn-ghost" type="button" data-action="copy-preview" id="copy-preview" title="Copy JSON" aria-label="Copy JSON">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
             </button>
             <button class="btn btn-icon btn-ghost" type="button" data-action="download" title="Download managed-settings.json" aria-label="Download managed-settings.json">
@@ -72,6 +76,7 @@
           </div>
         </div>
         <pre class="code" id="json-preview" aria-label="managed-settings.json contents"></pre>
+        <div class="summary-preview" id="summary-preview" role="region" aria-label="Plain-English settings summary" hidden></div>
         <div class="preview-foot">
           <span class="preview-file">copilot/managed-settings.json</span>
           <span id="preview-stats"></span>

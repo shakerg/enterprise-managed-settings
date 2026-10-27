@@ -46,6 +46,78 @@ test("default state produces an empty object", () => {
   assert.deepEqual(EMS.buildSettings(EMS.defaultState()), {});
 });
 
+test("settings summary identifies unmanaged areas and settings", () => {
+  const summary = EMS.summarizeSettings(EMS.defaultState());
+  assert.match(summary, /^# Managed settings summary/);
+  assert.match(summary, /## Model availability\n- Default model: Not managed — users choose\.\n- Auto routing tier: Not managed — users choose\./);
+  assert.match(summary, /## Sandbox\n- Not managed — users choose\./);
+  assert.match(summary, /## Telemetry\n- Not managed — users choose\./);
+});
+
+test("settings summary explains the unmanaged model sentinel and empty allow list", () => {
+  const state = EMS.defaultState();
+  state.model = { managed: true, value: "unmanaged", overridable: false };
+  state.permissions.allow = { managed: true, overridable: false, rules: [] };
+  const summary = EMS.summarizeSettings(state);
+  assert.match(summary, /The enterprise model default is removed for this team; users choose\./);
+  assert.match(summary, /An empty allow list is managed, so unmatched operations require approval\./);
+});
+
+test("settings summary explains managed values and team-overridable defaults", () => {
+  const state = EMS.defaultState();
+  state.model = { managed: true, value: "claude-sonnet-4.6", overridable: true };
+  state.autoTier = { managed: true, value: "intelligence", overridable: false };
+  state.permissions.deny = { managed: true, overridable: true, rules: ["Shell(rm -rf *)"] };
+  state.remoteControl = { managed: true, mode: "requireSSO", orgs: ["acme"] };
+  state.allowedMcpServers = { managed: true, overridable: false, items: [{ type: "serverUrl", value: "https://mcp.example.com/*" }] };
+  state.sandbox.managed = true;
+  state.sandbox.enabled = "true";
+  state.sandbox.network.allowedHosts = { managed: true, items: ["*.github.com"] };
+
+  const summary = EMS.summarizeSettings(state);
+  assert.match(summary, /New conversations default to `claude-sonnet-4\.6`\. This is a team-overridable default\./);
+  assert.match(summary, /New Auto model selections use the `intelligence` routing tier; users and repositories cannot override it\./);
+  assert.match(summary, /Copilot blocks operations matching `Shell\(rm -rf \*\)`\. This is a team-overridable default\./);
+  assert.match(summary, /Remote control is limited to clients with SSO authorization for `acme`/);
+  assert.match(summary, /Only MCP servers matching these entries are allowed: URL `https:\/\/mcp\.example\.com\/\*`\./);
+  assert.match(summary, /Sandboxing is required by this setting\./);
+  assert.match(summary, /Network access is limited to these host patterns: `\*\.github\.com`\./);
+});
+
+test("settings summary covers sandbox and telemetry controls", () => {
+  const state = EMS.defaultState();
+  state.sandbox.managed = true;
+  state.sandbox.allowBypass = "false";
+  state.sandbox.authGit = "false";
+  state.sandbox.filesystem.deniedPaths = { managed: true, items: ["~/.ssh"] };
+  state.sandbox.network.allowOutbound = "false";
+  state.sandbox.network.proxyUrl = "http://proxy.example.com:8080";
+  state.sandbox.keychainAccess = "false";
+  state.telemetry.managed = true;
+  state.telemetry.enabled = "true";
+  state.telemetry.endpoint = "https://otel.example.com";
+  state.telemetry.capture.identity = "true";
+  state.telemetry.capture.prompts = "false";
+  state.telemetry.resourceAttributes = [{ key: "environment", value: "prod" }];
+  state.telemetry.headers = [{ key: "Authorization", value: "secret-value" }];
+  state.telemetry.disableHeadersProvider = true;
+
+  const summary = EMS.summarizeSettings(state);
+  assert.match(summary, /Sandbox bypass is prohibited\./);
+  assert.match(summary, /Git credential injection is blocked\./);
+  assert.match(summary, /Denied paths `~\/\.ssh` are added to the user's blocked filesystem paths\./);
+  assert.match(summary, /Outbound network access is blocked\./);
+  assert.match(summary, /Network requests use proxy `http:\/\/proxy\.example\.com:8080`\./);
+  assert.match(summary, /macOS Keychain access is blocked\./);
+  assert.match(summary, /Collector endpoint: `https:\/\/otel\.example\.com`\./);
+  assert.match(summary, /Capture account and device identity is on\./);
+  assert.match(summary, /Capture prompts and model input is off\./);
+  assert.match(summary, /Resource attributes: `environment` = `prod`\./);
+  assert.match(summary, /Custom HTTP headers are sent with each request: `Authorization`\./);
+  assert.doesNotMatch(summary, /secret-value/);
+  assert.match(summary, /User-configured dynamic headers are disabled\./);
+});
+
 test("related policies include only dependencies of emitted settings", () => {
   const state = EMS.defaultState();
   assert.deepEqual(EMS.relatedPolicies(EMS.buildSettings(state)), []);

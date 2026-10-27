@@ -312,6 +312,256 @@
     return out;
   }
 
+  function summarizeSettings(s) {
+    const notManaged = "Not managed — users choose.";
+    const teamDefault = " This is a team-overridable default.";
+    const code = (value) => {
+      const text = String(value == null ? "" : value).replace(/[\r\n]+/g, " ");
+      const runs = [...text.matchAll(/`+/g)].map((match) => match[0].length);
+      const fence = "`".repeat(Math.max(1, ...runs.map((length) => length + 1)));
+      const pad = /^ | $|`/.test(text) ? " " : "";
+      return `${fence}${pad}${text}${pad}${fence}`;
+    };
+    const configured = (label, isManaged, text, overridable) =>
+      isManaged ? `${text}${overridable ? teamDefault : ""}` : `${label}: ${notManaged}`;
+    const section = (title, lines) => `## ${title}\n${lines.map((line) => `- ${line}`).join("\n")}`;
+    const tri = (value, label, on, off) =>
+      value === "true" ? `${label} ${on}` : value === "false" ? `${label} ${off}` : `${label}: ${notManaged}`;
+    const list = (items) => items.map(code).join(", ");
+    const matcher = (item) => {
+      if (item.type === "serverCommand") return `command ${code(item.value)}`;
+      if (item.type === "serverUrl") return `URL ${code(item.value)}`;
+      return `server name ${code(item.value)}`;
+    };
+    const source = (item) => {
+      const details = [code(item.source), ...((SOURCE_FIELDS[item.source] || []).filter((field) => item[field]).map((field) => `${field} ${code(item[field])}`))];
+      const headers = Object.keys(kvToObj(item.headers));
+      if (headers.length) details.push(`headers ${headers.map(code).join(", ")}`);
+      return details.join(", ");
+    };
+    const marketplace = (item) => {
+      const update = item.autoUpdate === "true" ? "automatic updates required" : item.autoUpdate === "false" ? "automatic updates disabled" : "client update preference unchanged";
+      return `${code(item.name)} from ${source(item.source)} (${update})`;
+    };
+
+    const p = s.permissions;
+    const permissionLines = [
+      configured("Bypass mode", p.disableBypassPermissionsMode, p.disableBypassPermissionsMode ? "Bypass (allow-all) mode is disabled." : "", false),
+      configured("Assisted permissions", p.disableAssistedPermissionsMode, p.disableAssistedPermissionsMode ? "Assisted permissions mode is disabled." : "", false),
+      configured("Default permission mode", p.defaultMode !== UNSET, p.defaultMode !== UNSET ? `New sessions default to ${code(p.defaultMode)} permission mode.` : "", false),
+      ...["deny", "ask", "allow"].map((kind) => {
+        const rules = p[kind];
+        if (!rules.managed) return `${kind[0].toUpperCase()}${kind.slice(1)} rules: ${notManaged}`;
+        if (!rules.rules.length) {
+          if (kind === "allow") return "An empty allow list is managed, so unmatched operations require approval.";
+          return `${kind[0].toUpperCase()}${kind.slice(1)} rules are managed; no operations are listed.`;
+        }
+        const sentence = kind === "deny"
+          ? `Copilot blocks operations matching ${list(rules.rules)}.`
+          : kind === "ask"
+            ? `Copilot requires fresh approval for operations matching ${list(rules.rules)}.`
+            : `Copilot lets operations matching ${list(rules.rules)} run without a prompt.`;
+        return `${sentence}${rules.overridable ? teamDefault : ""}`;
+      }),
+    ];
+
+    const plugins = s.enabledPlugins;
+    const extra = s.extraKnownMarketplaces;
+    const strict = s.strictKnownMarketplaces;
+    const pluginLines = [
+      !plugins.managed
+        ? `Required or blocked plugins: ${notManaged}`
+        : plugins.items.length
+          ? plugins.items.map((item) => `${item.enabled ? "Requires" : "Blocks"} plugin ${code(item.key)}.`).join("\n- ")
+          : "No plugins are required or blocked.",
+      !extra.managed
+        ? `Additional plugin marketplaces: ${notManaged}`
+        : extra.items.length
+          ? `Users can access these additional marketplaces: ${extra.items.map(marketplace).join("; ")}.${extra.overridable ? teamDefault : ""}`
+          : `No additional plugin marketplaces are configured.${extra.overridable ? teamDefault : ""}`,
+      !strict.managed
+        ? `Plugin marketplace restrictions: ${notManaged}`
+        : strict.items.length
+          ? `Plugin installation is restricted to these marketplaces: ${strict.items.map(source).join("; ")}.${strict.overridable ? teamDefault : ""}`
+          : `Plugin installation is locked to no listed marketplaces.${strict.overridable ? teamDefault : ""}`,
+    ];
+
+    const sandbox = s.sandbox;
+    const sandboxLines = [];
+    if (!sandbox.managed) {
+      sandboxLines.push(notManaged);
+    } else {
+      sandboxLines.push(`Sandbox policy is managed.${sandbox.overridable ? teamDefault : ""}`);
+      const addTri = (key, label, on, off) => {
+        if (sandbox[key] !== UNSET) sandboxLines.push(tri(sandbox[key], label, on, off));
+      };
+      addTri("enabled", "Sandboxing", "is required by this setting.", "is not enforced by this setting.");
+      if (sandbox.failIfUnavailable === "true") {
+        sandboxLines.push(sandbox.enabled === "true"
+          ? "If sandbox enforcement is unavailable, model and tool execution is blocked."
+          : "Failing closed when sandboxing is unavailable has no effect unless sandboxing is enabled.");
+      } else if (sandbox.failIfUnavailable === "false") {
+        sandboxLines.push("Failing closed when sandboxing is unavailable is disabled.");
+      }
+      addTri("allowBypass", "Sandbox bypass", "is not blocked by this setting.", "is prohibited.");
+      addTri("addCurrentWorkingDirectory", "Current working directory", "is not restricted from automatic read/write access.", "is not automatically granted read/write access.");
+      addTri("sandboxMcpServers", "Local MCP servers", "must run in the sandbox.", "do not have to run in the sandbox.");
+      addTri("sandboxLspServers", "Language servers", "must run in the sandbox.", "do not have to run in the sandbox.");
+      addTri("allowDevToolAccess", "Automatic developer-tool access", "is not blocked by this setting.", "is blocked.");
+      if (sandbox.learningModeDeny) sandboxLines.push("Windows sandbox learning mode records blocked access and enforces restrictions.");
+      addTri("authGit", "Git credential injection", "is not blocked by this setting.", "is blocked.");
+      addTri("authGh", "GitHub CLI credential injection", "is not blocked by this setting.", "is blocked.");
+      const fs = sandbox.filesystem;
+      [
+        ["readwritePaths", "Read/write paths"],
+        ["readonlyPaths", "Read-only paths"],
+        ["deniedPaths", "Denied paths"],
+      ].forEach(([key, label]) => {
+        const item = fs[key];
+        if (!item.managed) return;
+        if (key === "readwritePaths" && !item.items.length) sandboxLines.push("User read/write grants are removed.");
+        else if (key === "readonlyPaths" && !item.items.length) sandboxLines.push("User read-only grants are removed.");
+        else if (key === "deniedPaths" && !item.items.length) sandboxLines.push("No additional filesystem paths are denied.");
+        else if (key === "readwritePaths") sandboxLines.push(`User read/write grants are restricted to paths also listed here: ${list(item.items)}.`);
+        else if (key === "readonlyPaths") sandboxLines.push(`User read-only grants are restricted to paths also listed here: ${list(item.items)}.`);
+        else sandboxLines.push(`Denied paths ${list(item.items)} are added to the user's blocked filesystem paths.`);
+      });
+      const network = sandbox.network;
+      if (network.allowOutbound !== UNSET) sandboxLines.push(tri(network.allowOutbound, "Outbound network access", "is not blocked by this setting.", "is blocked."));
+      if (network.allowLocalNetwork !== UNSET) sandboxLines.push(tri(network.allowLocalNetwork, "Local network access", "is not restricted by this setting.", "is restricted."));
+      [
+        ["allowedHosts", "Allowed network hosts"],
+        ["blockedHosts", "Blocked network hosts"],
+      ].forEach(([key, label]) => {
+        const item = network[key];
+        if (!item.managed) return;
+        sandboxLines.push(item.items.length
+          ? `${key === "allowedHosts" ? "Network access is limited to these host patterns" : "These network hosts are blocked"}: ${list(item.items)}.`
+          : key === "allowedHosts"
+            ? "No allowed network host patterns are listed."
+            : "No additional network hosts are blocked.");
+      });
+      if (network.proxyUrl) sandboxLines.push(`Network requests use proxy ${code(network.proxyUrl)}.`);
+      if (sandbox.keychainAccess !== UNSET)
+        sandboxLines.push(tri(sandbox.keychainAccess, "macOS Keychain access", "is not blocked by this setting.", "is blocked."));
+      const sandboxValues = [
+        sandbox.enabled, sandbox.failIfUnavailable, sandbox.allowBypass, sandbox.addCurrentWorkingDirectory,
+        sandbox.sandboxMcpServers, sandbox.sandboxLspServers, sandbox.allowDevToolAccess, sandbox.authGit,
+        sandbox.authGh, sandbox.keychainAccess, network.allowOutbound, network.allowLocalNetwork,
+      ];
+      const hasUnmanagedControl =
+        sandboxValues.includes(UNSET) || !sandbox.learningModeDeny ||
+        Object.values(fs).some((item) => !item.managed) ||
+        ["allowedHosts", "blockedHosts"].some((key) => !network[key].managed) || !network.proxyUrl;
+      if (hasUnmanagedControl) sandboxLines.push(`Other sandbox controls are ${notManaged}`);
+    }
+
+    const telemetry = s.telemetry;
+    const telemetryLines = [];
+    if (!telemetry.managed) {
+      telemetryLines.push(notManaged);
+    } else {
+      const t = telemetry;
+      telemetryLines.push("OpenTelemetry export is managed.");
+      telemetryLines.push(tri(t.enabled, "Export", "is enabled.", "is disabled."));
+      telemetryLines.push(t.endpoint ? `Collector endpoint: ${code(t.endpoint)}.` : `Collector endpoint: ${notManaged}`);
+      telemetryLines.push(t.protocol ? `Export protocol: ${code(t.protocol)}.` : `Export protocol: ${notManaged}`);
+      telemetryLines.push(t.serviceName ? `Service name: ${code(t.serviceName)}.` : `Service name: ${notManaged}`);
+      Object.entries({
+        identity: "account and device identity",
+        prompts: "prompts and model input",
+        responses: "assistant responses",
+        toolArguments: "tool arguments and commands",
+        toolOutput: "tool results and errors",
+        policyDetail: "detailed policy data",
+      }).forEach(([key, label]) => {
+        telemetryLines.push(tri(t.capture[key], `Capture ${label}`, "is on.", "is off."));
+      });
+      telemetryLines.push(tri(t.captureContent, "Legacy content capture", "is on.", "is off."));
+      telemetryLines.push(tri(t.lockCaptureContent, "Unconfigured content capture", "cannot be enabled by local settings.", "may be enabled by local settings."));
+      const attributes = Object.entries(kvToObj(t.resourceAttributes));
+      telemetryLines.push(attributes.length
+        ? `Resource attributes: ${attributes.map(([key, value]) => `${code(key)} = ${code(value)}`).join(", ")}.`
+        : `Resource attributes: ${notManaged}`);
+      const headers = Object.keys(kvToObj(t.headers));
+      telemetryLines.push(headers.length
+        ? `Custom HTTP headers are sent with each request: ${headers.map(code).join(", ")}.`
+        : `Custom HTTP headers: ${notManaged}`);
+      telemetryLines.push(t.disableHeadersProvider
+        ? "User-configured dynamic headers are disabled."
+        : `Dynamic headers provider: ${notManaged}`);
+    }
+
+    const modelLines = [
+      configured(
+        "Default model",
+        s.model.managed,
+        s.model.managed
+          ? s.model.value === "auto"
+            ? "Copilot chooses the model for new conversations."
+            : s.model.value === "unmanaged"
+              ? "The enterprise model default is removed for this team; users choose."
+              : `New conversations default to ${code(s.model.value)}.`
+          : "",
+        s.model.overridable
+      ),
+      configured(
+        "Auto routing tier",
+        s.autoTier.managed,
+        s.autoTier.managed
+          ? s.autoTier.value === "unmanaged"
+            ? "Auto routing tier is left to users and repositories."
+            : s.autoTier.overridable
+              ? `New Auto model selections default to the ${code(s.autoTier.value)} routing tier.`
+              : `New Auto model selections use the ${code(s.autoTier.value)} routing tier; users and repositories cannot override it.`
+          : "",
+        s.autoTier.overridable
+      ),
+    ];
+    const accessLines = [
+      s.features.computerUse === "true"
+        ? "Users choose whether to enable computer use."
+        : s.features.computerUse === "false"
+          ? "Users cannot enable computer use."
+          : `Computer use: ${notManaged}`,
+      !s.remoteControl.managed
+        ? `Remote control: ${notManaged}`
+        : s.remoteControl.mode === "disabled"
+          ? "Remote control is disabled."
+          : s.remoteControl.mode === "enabled"
+            ? "Remote control is unrestricted."
+            : s.remoteControl.mode === "requireSSO"
+              ? `Remote control is limited to clients with SSO authorization for ${list(s.remoteControl.orgs)}.`
+              : `Remote control uses the unrecognized mode ${code(s.remoteControl.mode)}.`,
+      s.forceRemoteSettingsRefresh
+        ? "Clients must fetch fresh server-managed settings at startup."
+        : `Forced settings refresh: ${notManaged}`,
+    ];
+    const mcpLines = [
+      !s.allowedMcpServers.managed
+        ? `MCP allowlist: ${notManaged}`
+        : s.allowedMcpServers.items.length
+          ? `Only MCP servers matching these entries are allowed: ${s.allowedMcpServers.items.map(matcher).join("; ")}.${s.allowedMcpServers.overridable ? teamDefault : ""}`
+          : `No MCP servers are allowed except built-in defaults.${s.allowedMcpServers.overridable ? teamDefault : ""}`,
+      !s.deniedMcpServers.managed
+        ? `MCP denylist: ${notManaged}`
+        : s.deniedMcpServers.items.length
+          ? `Blocked MCP servers: ${s.deniedMcpServers.items.map(matcher).join("; ")}.`
+          : "No additional MCP servers are blocked.",
+    ];
+
+    return [
+      "# Managed settings summary",
+      section("Model availability", modelLines),
+      section("Permissions", permissionLines),
+      section("Features & access", accessLines),
+      section("Plugins & marketplaces", pluginLines),
+      section("MCP servers", mcpLines),
+      section("Sandbox", sandboxLines),
+      section("Telemetry", telemetryLines),
+    ].join("\n\n");
+  }
+
   // ---------- parse (import) ----------
   function parseSettings(json) {
     const s = defaultState();
@@ -697,6 +947,7 @@
     relatedPolicies,
     defaultState,
     buildSettings,
+    summarizeSettings,
     parseSettings,
     validate,
     hasOverridable,
