@@ -150,3 +150,47 @@ test("supported models table is parsed from docs markdown", () => {
   ]);
   assert.deepEqual(EMS.parseModelsDoc("# nothing here"), []);
 });
+
+const ENTRIES = [
+  { date: "2026-09-01", type: "fix", title: "Old fix" },
+  { date: "2026-10-20", type: "setting", title: "Sandbox credentials", step: "sandbox", key: "sandbox" },
+  { date: "2026-10-27", type: "model", title: "Models added", step: "model" },
+];
+
+test("what's new shows only unseen entries, newest first", () => {
+  const oldOnly = [EMS.whatsNewId(ENTRIES[0])];
+  assert.deepEqual(EMS.unseenEntries(ENTRIES, oldOnly).map((e) => e.title), ["Models added", "Sandbox credentials"]);
+  assert.deepEqual(EMS.unseenEntries(ENTRIES, ENTRIES.map(EMS.whatsNewId)), []);
+});
+
+test("what's new still shows an entry added later on an already-seen day", () => {
+  const later = { date: "2026-10-27", type: "setting", title: "New setting", step: "access" };
+  const seen = ENTRIES.map(EMS.whatsNewId);
+  assert.deepEqual(EMS.unseenEntries([...ENTRIES, later], seen).map((e) => e.title), ["New setting"]);
+  assert.ok(EMS.validateWhatsNew([later, later]).some((p) => p.includes("duplicate")));
+});
+
+test("first-time visitors see no what's new backlog", () => {
+  assert.deepEqual(EMS.unseenEntries(ENTRIES, null), []);
+});
+
+test("New badges cover entries from the last 30 days", () => {
+  const r = EMS.recentHighlights(ENTRIES, "2026-11-10");
+  assert.deepEqual(r.steps.sort(), ["model", "sandbox"]);
+  assert.deepEqual(r.keys, ["sandbox"]);
+  assert.deepEqual(EMS.recentHighlights(ENTRIES, "2026-12-01"), { steps: [], keys: [] });
+  assert.deepEqual(EMS.recentHighlights(ENTRIES, "2026-10-19"), { steps: [], keys: [] }, "future entries are ignored");
+});
+
+test("js/whats-new.js entries are valid", () => {
+  let entries;
+  if (isNode) {
+    const src = require("node:fs").readFileSync(require("node:path").join(__dirname, "..", "js", "whats-new.js"), "utf8");
+    entries = JSON.parse(src.slice(src.indexOf("= [") + 2, src.lastIndexOf("]") + 1));
+  } else {
+    entries = window.EMS_WHATS_NEW;
+  }
+  assert.ok(Array.isArray(entries) && entries.length, "expected a non-empty array");
+  assert.deepEqual(EMS.validateWhatsNew(entries), []);
+  assert.deepEqual(EMS.validateWhatsNew([{ date: "10/27/2026", type: "news" }]).length, 3);
+});

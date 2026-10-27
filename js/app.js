@@ -60,6 +60,25 @@
     }
   }
 
+  // What's new: changelog entries from js/whats-new.js drive a banner and "New" badges.
+  const SEEN_KEY = "ems-whats-new-seen-ids";
+  const WHATS_NEW = Array.isArray(window.EMS_WHATS_NEW) ? window.EMS_WHATS_NEW : [];
+  const TODAY = new Date().toISOString().slice(0, 10);
+  const saveSeen = (ids) => {
+    // Only keep IDs that still exist so the stored list can't grow forever.
+    const current = new Set(WHATS_NEW.map(EMS.whatsNewId));
+    seenIds = [...new Set(ids)].filter((id) => current.has(id));
+    safeSet(SEEN_KEY, JSON.stringify(seenIds));
+  };
+  let seenIds = null;
+  try { seenIds = JSON.parse(safeGet(SEEN_KEY) || "null"); } catch { seenIds = null; }
+  // First visit: mark everything as seen so there's no backlog to read through.
+  if (!Array.isArray(seenIds)) saveSeen(WHATS_NEW.map(EMS.whatsNewId));
+  const recent = EMS.recentHighlights(WHATS_NEW, TODAY);
+  const NEW_STEPS = new Set(recent.steps);
+  const NEW_KEYS = new Set(recent.keys);
+  const newBadge = () => `<span class="badge-new">New</span>`;
+
   function loadState() {
     const raw = safeGet(STORE_KEY);
     if (!raw) return EMS.defaultState();
@@ -141,6 +160,7 @@
     warning: '<path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/>',
     error: '<circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/>',
     x: '<path d="M18 6L6 18M6 6l12 12"/>',
+    sparkle: '<path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.8 1.7 1.7.8-1.7.8L19 20l-.8-1.7-1.7-.8 1.7-.8z"/>',
     plus: '<path d="M12 5v14M5 12h14"/>',
     trash: '<path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>',
     arrowL: '<path d="M19 12H5M12 19l-7-7 7-7"/>',
@@ -180,7 +200,7 @@
     return `<section class="card ${off ? "is-off" : ""}">
       <div class="card-head">
         <div class="card-head-text">
-          <h2 class="card-title">${title}${key ? ` <span class="card-key">${esc(key)}</span>` : ""}</h2>
+          <h2 class="card-title">${title}${key ? ` <span class="card-key">${esc(key)}</span>` : ""}${key && NEW_KEYS.has(key) ? ` ${newBadge()}` : ""}</h2>
           ${desc ? `<p class="card-desc">${desc}</p>` : ""}
           ${sup ? support(sup) : ""}
         </div>
@@ -826,7 +846,7 @@
       const meta = s.keys ? (n ? `${n} set` : "") : "";
       const dot = errs ? `<span class="step-dot" title="${errs} error(s)"></span>` : warns ? `<span class="step-dot warn" title="${warns} warning(s)"></span>` : "";
       return `<li><button type="button" class="step-btn ${n ? "configured" : ""}" data-action="goto" data-step="${i}" ${i === step ? 'aria-current="step"' : ""}>
-        <span class="step-num">${i + 1}</span><span class="step-label">${esc(s.label)}</span><span class="step-meta">${meta}</span>${dot}</button></li>`;
+        <span class="step-num">${i + 1}</span><span class="step-label">${esc(s.label)}</span>${NEW_STEPS.has(s.id) ? newBadge() : ""}<span class="step-meta">${meta}</span>${dot}</button></li>`;
     }).join("");
     const pct = Math.round((step / (STEPS.length - 1)) * 100);
     $("#progress-fill").style.width = pct + "%";
@@ -850,6 +870,50 @@
       if (el) el.focus();
     }
     pendingFocus = null;
+  }
+
+  const WHATS_NEW_LABELS = { setting: "Setting", model: "Models", fix: "Fix" };
+
+  function renderWhatsNew() {
+    const el = $("#whats-new");
+    if (!el) return;
+    const status = $("#whats-new-status");
+    const entries = EMS.unseenEntries(WHATS_NEW, seenIds);
+    if (!entries.length) {
+      el.hidden = true;
+      el.innerHTML = "";
+      if (status) status.textContent = "";
+      return;
+    }
+    const item = (e) => {
+      const i = STEPS.findIndex((st) => st.id === e.step);
+      const title = i >= 0
+        ? `<button type="button" class="link-btn" data-action="goto" data-step="${i}">${esc(e.title)}</button>`
+        : `<span>${esc(e.title)}</span>`;
+      const when = new Date(e.date + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
+      return `<li><span class="wn-tag wn-${esc(e.type)}">${esc(WHATS_NEW_LABELS[e.type] || e.type)}</span>${title}<time datetime="${esc(e.date)}">${esc(when)}</time></li>`;
+    };
+    const first = entries.slice(0, 5).map(item).join("");
+    const rest = entries.slice(5);
+    const more = rest.length
+      ? `<details class="wn-more"><summary>Show ${rest.length} more</summary><ul>${rest.map(item).join("")}</ul></details>`
+      : "";
+    el.innerHTML = `<div class="whats-new-card">
+      <div class="whats-new-icon">${icon("sparkle")}</div>
+      <div class="whats-new-body">
+        <h2 class="whats-new-title">What's new since your last visit</h2>
+        <ul>${first}</ul>${more}
+      </div>
+      <button type="button" class="btn btn-icon btn-ghost" data-action="dismiss-whats-new" aria-label="Dismiss what's new" title="Dismiss">${icon("x")}</button>
+    </div>`;
+    el.hidden = false;
+    // The banner region starts hidden, so announce through a separate, always-present live region.
+    if (status) status.textContent = `What's new: ${entries.length} change${entries.length > 1 ? "s" : ""} since your last visit.`;
+  }
+
+  function dismissWhatsNew() {
+    saveSeen([...seenIds, ...EMS.unseenEntries(WHATS_NEW, seenIds).map(EMS.whatsNewId)]);
+    renderWhatsNew();
   }
 
   function highlight(json) {
@@ -951,6 +1015,7 @@
     const a = btn.dataset.action;
     const actions = {
       goto: () => goto(Number(btn.dataset.step)),
+      "dismiss-whats-new": dismissWhatsNew,
       next: () => goto(step + 1),
       prev: () => goto(step - 1),
       preset: () => applyPreset(btn.dataset.preset),
@@ -1141,5 +1206,7 @@
   // ------------------------------------------------------------------ init
   applyTheme(safeGet(THEME_KEY) || "system");
   render();
+  // Fill the live region after load so screen readers announce it without moving focus.
+  setTimeout(renderWhatsNew, 300);
   refreshModels(false);
 })();

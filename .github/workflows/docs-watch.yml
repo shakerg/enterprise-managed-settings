@@ -88,6 +88,7 @@ jobs:
             echo "- Update \`js/settings-core.js\` (state, build, parse, validate) and \`js/app.js\` (wizard UI, client support chips, help text)."
             echo "- Add or update tests in \`tests/settings-core.test.js\` and make sure \`node --test tests/settings-core.test.js\` passes."
             echo "- Update \`README.md\` if behavior changes."
+            echo "- Add an entry to \`js/whats-new.js\` for each new or changed setting (\`type: \"setting\"\`, with \`step\` and \`key\`) so returning users see it."
             echo "- If the diff is only wording or formatting with no effect on the tool, say so in the PR and make no code changes."
             echo
             echo "The baseline in \`$BASELINE\` has already been updated to the latest version."

@@ -489,3 +489,42 @@ dialog::backdrop { background: rgba(11, 13, 28, 0.55); backdrop-filter: blur(3px
 }
 .link-btn:disabled { opacity: .5; cursor: progress; }
 .text-warn { color: var(--warn, #b45309); }
+
+/* What's new banner and "New" badges */
+.whats-new { max-width: 1500px; margin: 0 auto; padding: 24px 24px 0; }
+.whats-new[hidden] { display: none; }
+.whats-new-card {
+  display: flex; gap: 14px; align-items: flex-start;
+  padding: 14px 16px; border-radius: var(--radius);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(6px);
+}
+.whats-new-icon {
+  width: 32px; height: 32px; border-radius: 9px; flex: none;
+  display: grid; place-items: center; color: #fff; background: var(--brand-gradient);
+}
+.whats-new-icon svg { width: 18px; height: 18px; }
+.whats-new-body { flex: 1; min-width: 0; }
+.whats-new-title { font-size: var(--fs-sm); font-weight: 700; margin-bottom: 6px; }
+.whats-new ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: var(--fs-sm); }
+.whats-new li { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.whats-new li .link-btn { text-align: left; }
+.whats-new time { color: var(--text-faint); font-size: var(--fs-xs); }
+.wn-more { margin-top: 6px; font-size: var(--fs-sm); }
+.wn-more summary { cursor: pointer; color: var(--primary); width: fit-content; }
+.wn-more ul { margin-top: 6px; }
+.wn-tag {
+  font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  padding: 1px 7px; border-radius: 99px;
+  color: var(--primary); background: var(--primary-soft);
+}
+.wn-model { color: var(--info); background: var(--info-soft); }
+.wn-fix { color: var(--text-muted); background: var(--surface-3); }
+.badge-new {
+  display: inline-block; vertical-align: middle;
+  font-size: 10px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; line-height: 1;
+  padding: 3px 6px; border-radius: 99px; color: #fff; background: var(--brand-gradient);
+}
+@media print { .whats-new { display: none; } }

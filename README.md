@@ -25,6 +25,7 @@ Progress and theme (system / light / dark) are saved in `localStorage`. Nothing 
 | `css/styles.css` | Design tokens (blue/purple palette, light & dark themes) and components |
 | `js/settings-core.js` | Pure logic: state → JSON, JSON → state, validation, presets, model list parsing |
 | `js/models-snapshot.js` | Offline fallback list of supported models |
+| `js/whats-new.js` | Changelog behind the "What's new" banner and "New" badges |
 | `js/app.js` | Wizard UI |
 | `tests/` | Unit tests for `settings-core.js` |
 
@@ -39,10 +40,14 @@ Two scheduled GitHub Actions workflows run daily:
 
 | Workflow | What it does |
 | --- | --- |
-| [`update-models.yml`](.github/workflows/update-models.yml) | Regenerates `js/models-snapshot.js` from the Supported AI models docs page, commits it if the list changed, and redeploys Pages. |
+| [`update-models.yml`](.github/workflows/update-models.yml) | Regenerates `js/models-snapshot.js` from the Supported AI models docs page, commits it if the list changed, adds a "What's new" entry, and redeploys Pages. |
 | [`docs-watch.yml`](.github/workflows/docs-watch.yml) | Compares the managed settings reference with `docs-baseline/enterprise-managed-settings.md`. When it changes, opens a `docs-change` issue with the diff and assigns it to the Copilot coding agent, which opens a PR. |
 
 Both can also be run manually from the **Actions** tab.
+
+### What's new
+
+Returning visitors see a dismissible **What's new** banner listing changes since their last visit, and recently changed steps and settings show a **New** badge for 30 days. Entries live in [`js/whats-new.js`](js/whats-new.js): the model workflow adds them automatically, and new or changed settings should add one by hand (the docs-watch issue asks Copilot to).
 
 To let `docs-watch.yml` assign issues to Copilot, add a repository secret named `COPILOT_ASSIGN_TOKEN` containing a fine-grained personal access token for this repository with read and write access to **Issues**, **Pull requests**, **Contents**, and **Actions**, and read access to **Metadata**. Without it, the issue is still opened and you can assign Copilot manually.
 

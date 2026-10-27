@@ -8,6 +8,7 @@ const EMS = require("../js/settings-core.js");
 
 const URL = "https://docs.github.com/api/article/body?pathname=/en/copilot/reference/ai-models/supported-models";
 const OUT = path.join(__dirname, "..", "js", "models-snapshot.js");
+const WHATS_NEW = path.join(__dirname, "..", "js", "whats-new.js");
 const HEADER = `/* Offline fallback for the model pick list. Generated from the GitHub docs
    "Supported AI models in Copilot" table; the app refreshes it live when online. */
 window.EMS_MODELS_SNAPSHOT = `;
@@ -19,6 +20,27 @@ function readCurrent() {
   } catch (e) {
     return null;
   }
+}
+
+const list = (ids) => (ids.length > 3 ? `${ids.slice(0, 3).join(", ")} and ${ids.length - 3} more` : ids.join(", "));
+
+// Adds a "model" entry to js/whats-new.js so returning users see the change.
+function addWhatsNewEntry(date, added, removed) {
+  if (!added.length && !removed.length) return;
+  const parts = [];
+  if (added.length) parts.push(`${added.length} model${added.length > 1 ? "s" : ""} added: ${list(added)}`);
+  if (removed.length) parts.push(`${removed.length} removed: ${list(removed)}`);
+  const src = fs.readFileSync(WHATS_NEW, "utf8");
+  const start = src.indexOf("= [") + 2;
+  const end = src.lastIndexOf("]") + 1;
+  const entries = JSON.parse(src.slice(start, end));
+  const problems = EMS.validateWhatsNew(entries);
+  if (problems.length) throw new Error(`js/whats-new.js is invalid: ${problems.join("; ")}`);
+  const entry = { date, type: "model", title: parts.join("; "), step: "model" };
+  if (entries.some((e) => EMS.whatsNewId(e) === EMS.whatsNewId(entry))) return;
+  entries.unshift(entry);
+  fs.writeFileSync(WHATS_NEW, src.slice(0, start) + JSON.stringify(entries, null, 2) + src.slice(end));
+  console.log("Added what's new entry.");
 }
 
 (async () => {
@@ -39,6 +61,7 @@ function readCurrent() {
   const after = new Set(models.map((m) => m.id));
   const added = [...after].filter((id) => !before.has(id));
   const removed = [...before].filter((id) => !after.has(id));
+  addWhatsNewEntry(fetchedAt, added, removed);
   console.log(`Updated snapshot: ${models.length} models. Added: ${added.join(", ") || "none"}. Removed: ${removed.join(", ") || "none"}.`);
   if (process.env.GITHUB_OUTPUT) {
     fs.appendFileSync(process.env.GITHUB_OUTPUT, `summary=Added: ${added.join(", ") || "none"}; Removed: ${removed.join(", ") || "none"}\n`);
