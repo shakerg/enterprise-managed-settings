@@ -22,7 +22,7 @@ Progress and theme (system / light / dark) are saved in `localStorage`. Nothing 
 | Path | Purpose |
 | --- | --- |
 | `index.html` | App shell |
-| `css/styles.css` | Design tokens (blue/purple palette, light & dark themes) and components |
+| `css/styles.css` | Design tokens (black/charcoal palette, light & dark themes) and components |
 | `js/settings-core.js` | Pure logic: state → JSON, JSON → state, validation, presets, model list parsing |
 | `js/models-snapshot.js` | Offline fallback list of supported models |
 | `js/whats-new.js` | Changelog behind the "What's new" banner and "New" badges |
