@@ -27,6 +27,8 @@
     window.assert = {
       equal: (a, b, m) => { if (a !== b) throw new Error(m || `${a} !== ${b}`); },
       ok: (v, m) => { if (!v) throw new Error(m || "expected truthy"); },
+      match: (v, re, m) => { if (!re.test(v)) throw new Error(m || `${v} does not match ${re}`); },
+      doesNotMatch: (v, re, m) => { if (re.test(v)) throw new Error(m || `${v} matches ${re}`); },
       deepEqual: (a, b, m) => {
         if (canon(a) !== canon(b)) throw new Error((m ? m + ": " : "") + `\nactual:   ${canon(a)}\nexpected: ${canon(b)}`);
       },

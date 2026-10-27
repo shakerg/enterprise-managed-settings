@@ -16,6 +16,7 @@
   let step = Number(safeGet(STEP_KEY)) || 0;
   let pendingFocus = null;
   let uid = 0;
+  let previewMode = "json";
 
   function safeGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
   function safeSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* storage unavailable */ } }
@@ -979,17 +980,65 @@
     return JSON.stringify(EMS.buildSettings(state), null, 2) + "\n";
   }
 
+  function summaryHtml(markdown) {
+    let html = "";
+    let inList = false;
+    const closeList = () => {
+      if (!inList) return;
+      html += "</ul>";
+      inList = false;
+    };
+    const inline = (text) => esc(text).replace(/(`+)(.+?)\1/g, "<code>$2</code>");
+    markdown.split("\n").forEach((line) => {
+      if (line.startsWith("# ")) {
+        closeList();
+        html += `<h2>${esc(line.slice(2))}</h2>`;
+      } else if (line.startsWith("## ")) {
+        closeList();
+        html += `<h3>${esc(line.slice(3))}</h3>`;
+      } else if (line.startsWith("- ")) {
+        if (!inList) {
+          html += "<ul>";
+          inList = true;
+        }
+        html += `<li>${inline(line.slice(2))}</li>`;
+      } else {
+        closeList();
+      }
+    });
+    closeList();
+    return html;
+  }
+
   function updatePreview() {
     const json = currentJson();
+    const summary = EMS.summarizeSettings(state);
+    const showSummary = previewMode === "summary";
+    $("#json-preview").hidden = showSummary;
+    $("#summary-preview").hidden = !showSummary;
     $("#json-preview").innerHTML = highlight(json);
+    $("#summary-preview").innerHTML = summaryHtml(summary);
+    document.querySelectorAll('[data-action="preview-mode"]').forEach((button) => {
+      button.setAttribute("aria-pressed", String(button.dataset.mode === previewMode));
+    });
+    const copyButton = $("#copy-preview");
+    copyButton.title = showSummary ? "Copy summary as Markdown" : "Copy JSON";
+    copyButton.setAttribute("aria-label", copyButton.title);
     const issues = EMS.validate(state);
     const errs = issues.filter((i) => i.level === "error").length;
     const warns = issues.filter((i) => i.level === "warning").length;
     const pill = $("#status-pill");
     pill.className = `status-pill ${errs ? "err" : warns ? "warn" : "ok"}`;
     pill.textContent = errs ? `${errs} error${errs > 1 ? "s" : ""}` : warns ? `${warns} warning${warns > 1 ? "s" : ""}` : "Valid";
-    const lines = json.split("\n").length - 1;
-    $("#preview-stats").textContent = `${lines} lines · ${new Blob([json]).size} B`;
+    $("#preview-stats").textContent = showSummary
+      ? `${summary.split("\n").filter((line) => line.startsWith("## ")).length} areas · ${summary.trim().split(/\s+/).length} words`
+      : `${json.split("\n").length - 1} lines · ${new Blob([json]).size} B`;
+  }
+
+  function setPreviewMode(mode) {
+    if (mode !== "json" && mode !== "summary") return;
+    previewMode = mode;
+    updatePreview();
   }
 
   function commit(rerender) {
@@ -1112,7 +1161,9 @@
         autoManage(btn.dataset.path);
         commit(true);
       },
+      "preview-mode": () => setPreviewMode(btn.dataset.mode),
       copy: copyJson,
+      "copy-preview": copyPreview,
       "refresh-models": () => refreshModels(true),
       download: downloadJson,
       theme: cycleTheme,
@@ -1184,8 +1235,16 @@
   });
 
   function copyJson() {
-    const text = currentJson();
-    const done = () => toast("Copied managed-settings.json");
+    copyText(currentJson(), "Copied managed-settings.json");
+  }
+
+  function copyPreview() {
+    if (previewMode === "summary") copyText(EMS.summarizeSettings(state), "Copied settings summary as Markdown");
+    else copyJson();
+  }
+
+  function copyText(text, message) {
+    const done = () => toast(message);
     if (navigator.clipboard && window.isSecureContext) {
       navigator.clipboard.writeText(text).then(done, () => fallbackCopy(text, done));
     } else fallbackCopy(text, done);
