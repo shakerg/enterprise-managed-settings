@@ -606,11 +606,14 @@
   const DAY_MS = 24 * 60 * 60 * 1000;
   const isoDay = (d) => (d instanceof Date ? d.toISOString().slice(0, 10) : String(d || "").slice(0, 10));
 
-  // Entries newer than the last-seen day, newest first. No last-seen day means a first visit: show nothing.
-  function unseenEntries(entries, lastSeen) {
-    if (!lastSeen) return [];
-    const seen = isoDay(lastSeen);
-    return (entries || []).filter((e) => isoDay(e.date) > seen).sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+  // Stable identity for an entry, so several entries on the same day are tracked separately.
+  const whatsNewId = (e) => `${isoDay(e.date)}|${e.title}`;
+
+  // Entries whose IDs aren't in `seenIds`, newest first. No seen list means a first visit: show nothing.
+  function unseenEntries(entries, seenIds) {
+    if (!seenIds) return [];
+    const seen = new Set(seenIds);
+    return (entries || []).filter((e) => !seen.has(whatsNewId(e))).sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
   }
 
   // Steps and setting keys with an entry in the last `days` days (inclusive), used for "New" badges.
@@ -635,6 +638,8 @@
       if (!WHATS_NEW_TYPES.includes(e.type)) problems.push(`#${i}: type must be one of ${WHATS_NEW_TYPES.join(", ")}`);
       if (!e.title || typeof e.title !== "string") problems.push(`#${i}: title is required`);
     });
+    const ids = (entries || []).map(whatsNewId);
+    ids.forEach((id, i) => { if (ids.indexOf(id) !== i) problems.push(`#${i}: duplicate date and title`); });
     return problems;
   }
 
@@ -658,6 +663,7 @@
     modelIdFromName,
     parseModelsDoc,
     WHATS_NEW_TYPES,
+    whatsNewId,
     unseenEntries,
     recentHighlights,
     validateWhatsNew,

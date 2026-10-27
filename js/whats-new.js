@@ -2,6 +2,7 @@
    Each entry: { date: "YYYY-MM-DD", type: "setting" | "model" | "fix", title, step?, key? }
    - step: wizard step id (welcome, model, permissions, access, plugins, mcp, sandbox, telemetry, review)
    - key: the setting key shown on the card (for example "sandbox" or "permissions.deny")
+   Entries are tracked by date + title, so editing either shows the entry again to returning visitors.
    scripts/update-models.js appends model entries automatically. Keep the JSON array valid. */
 window.EMS_WHATS_NEW = [
   {

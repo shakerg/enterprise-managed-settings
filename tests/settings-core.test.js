@@ -158,8 +158,16 @@ const ENTRIES = [
 ];
 
 test("what's new shows only unseen entries, newest first", () => {
-  assert.deepEqual(EMS.unseenEntries(ENTRIES, "2026-10-01").map((e) => e.title), ["Models added", "Sandbox credentials"]);
-  assert.deepEqual(EMS.unseenEntries(ENTRIES, "2026-10-27"), []);
+  const oldOnly = [EMS.whatsNewId(ENTRIES[0])];
+  assert.deepEqual(EMS.unseenEntries(ENTRIES, oldOnly).map((e) => e.title), ["Models added", "Sandbox credentials"]);
+  assert.deepEqual(EMS.unseenEntries(ENTRIES, ENTRIES.map(EMS.whatsNewId)), []);
+});
+
+test("what's new still shows an entry added later on an already-seen day", () => {
+  const later = { date: "2026-10-27", type: "setting", title: "New setting", step: "access" };
+  const seen = ENTRIES.map(EMS.whatsNewId);
+  assert.deepEqual(EMS.unseenEntries([...ENTRIES, later], seen).map((e) => e.title), ["New setting"]);
+  assert.ok(EMS.validateWhatsNew([later, later]).some((p) => p.includes("duplicate")));
 });
 
 test("first-time visitors see no what's new backlog", () => {

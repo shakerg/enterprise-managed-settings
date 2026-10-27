@@ -61,16 +61,19 @@
   }
 
   // What's new: changelog entries from js/whats-new.js drive a banner and "New" badges.
-  const SEEN_KEY = "ems-whats-new-seen";
+  const SEEN_KEY = "ems-whats-new-seen-ids";
   const WHATS_NEW = Array.isArray(window.EMS_WHATS_NEW) ? window.EMS_WHATS_NEW : [];
   const TODAY = new Date().toISOString().slice(0, 10);
-  const LATEST_ENTRY = WHATS_NEW.reduce((d, e) => (e.date > d ? e.date : d), "");
-  let lastSeen = safeGet(SEEN_KEY);
-  if (!lastSeen) {
-    // First visit: start from now so there's no backlog to read through.
-    lastSeen = LATEST_ENTRY > TODAY ? LATEST_ENTRY : TODAY;
-    safeSet(SEEN_KEY, lastSeen);
-  }
+  const saveSeen = (ids) => {
+    // Only keep IDs that still exist so the stored list can't grow forever.
+    const current = new Set(WHATS_NEW.map(EMS.whatsNewId));
+    seenIds = [...new Set(ids)].filter((id) => current.has(id));
+    safeSet(SEEN_KEY, JSON.stringify(seenIds));
+  };
+  let seenIds = null;
+  try { seenIds = JSON.parse(safeGet(SEEN_KEY) || "null"); } catch { seenIds = null; }
+  // First visit: mark everything as seen so there's no backlog to read through.
+  if (!Array.isArray(seenIds)) saveSeen(WHATS_NEW.map(EMS.whatsNewId));
   const recent = EMS.recentHighlights(WHATS_NEW, TODAY);
   const NEW_STEPS = new Set(recent.steps);
   const NEW_KEYS = new Set(recent.keys);
@@ -874,36 +877,42 @@
   function renderWhatsNew() {
     const el = $("#whats-new");
     if (!el) return;
-    const entries = EMS.unseenEntries(WHATS_NEW, lastSeen);
+    const status = $("#whats-new-status");
+    const entries = EMS.unseenEntries(WHATS_NEW, seenIds);
     if (!entries.length) {
       el.hidden = true;
       el.innerHTML = "";
+      if (status) status.textContent = "";
       return;
     }
-    const shown = entries.slice(0, 5);
-    const items = shown.map((e) => {
+    const item = (e) => {
       const i = STEPS.findIndex((st) => st.id === e.step);
       const title = i >= 0
         ? `<button type="button" class="link-btn" data-action="goto" data-step="${i}">${esc(e.title)}</button>`
         : `<span>${esc(e.title)}</span>`;
       const when = new Date(e.date + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
       return `<li><span class="wn-tag wn-${esc(e.type)}">${esc(WHATS_NEW_LABELS[e.type] || e.type)}</span>${title}<time datetime="${esc(e.date)}">${esc(when)}</time></li>`;
-    }).join("");
-    const more = entries.length > shown.length ? `<li class="wn-more">and ${entries.length - shown.length} more</li>` : "";
+    };
+    const first = entries.slice(0, 5).map(item).join("");
+    const rest = entries.slice(5);
+    const more = rest.length
+      ? `<details class="wn-more"><summary>Show ${rest.length} more</summary><ul>${rest.map(item).join("")}</ul></details>`
+      : "";
     el.innerHTML = `<div class="whats-new-card">
       <div class="whats-new-icon">${icon("sparkle")}</div>
       <div class="whats-new-body">
         <h2 class="whats-new-title">What's new since your last visit</h2>
-        <ul>${items}${more}</ul>
+        <ul>${first}</ul>${more}
       </div>
       <button type="button" class="btn btn-icon btn-ghost" data-action="dismiss-whats-new" aria-label="Dismiss what's new" title="Dismiss">${icon("x")}</button>
     </div>`;
     el.hidden = false;
+    // The banner region starts hidden, so announce through a separate, always-present live region.
+    if (status) status.textContent = `What's new: ${entries.length} change${entries.length > 1 ? "s" : ""} since your last visit.`;
   }
 
   function dismissWhatsNew() {
-    lastSeen = LATEST_ENTRY > lastSeen ? LATEST_ENTRY : lastSeen;
-    safeSet(SEEN_KEY, lastSeen);
+    saveSeen([...seenIds, ...EMS.unseenEntries(WHATS_NEW, seenIds).map(EMS.whatsNewId)]);
     renderWhatsNew();
   }
 

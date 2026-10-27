@@ -36,7 +36,9 @@ function addWhatsNewEntry(date, added, removed) {
   const entries = JSON.parse(src.slice(start, end));
   const problems = EMS.validateWhatsNew(entries);
   if (problems.length) throw new Error(`js/whats-new.js is invalid: ${problems.join("; ")}`);
-  entries.unshift({ date, type: "model", title: parts.join("; "), step: "model" });
+  const entry = { date, type: "model", title: parts.join("; "), step: "model" };
+  if (entries.some((e) => EMS.whatsNewId(e) === EMS.whatsNewId(entry))) return;
+  entries.unshift(entry);
   fs.writeFileSync(WHATS_NEW, src.slice(0, start) + JSON.stringify(entries, null, 2) + src.slice(end));
   console.log("Added what's new entry.");
 }

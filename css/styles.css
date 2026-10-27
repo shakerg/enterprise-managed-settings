@@ -512,7 +512,9 @@ dialog::backdrop { background: rgba(11, 13, 28, 0.55); backdrop-filter: blur(3px
 .whats-new li { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 .whats-new li .link-btn { text-align: left; }
 .whats-new time { color: var(--text-faint); font-size: var(--fs-xs); }
-.wn-more { color: var(--text-muted); }
+.wn-more { margin-top: 6px; font-size: var(--fs-sm); }
+.wn-more summary { cursor: pointer; color: var(--primary); width: fit-content; }
+.wn-more ul { margin-top: 6px; }
 .wn-tag {
   font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
   padding: 1px 7px; border-radius: 99px;
