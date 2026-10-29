@@ -46,21 +46,19 @@ test("default state produces an empty object", () => {
   assert.deepEqual(EMS.buildSettings(EMS.defaultState()), {});
 });
 
-test("settings summary identifies unmanaged areas and settings", () => {
+test("settings summary omits areas that are not configured", () => {
   const summary = EMS.summarizeSettings(EMS.defaultState());
-  assert.match(summary, /^# Managed settings summary/);
-  assert.match(summary, /## Model availability\n- Default model: Not managed — users choose\.\n- Auto routing tier: Not managed — users choose\./);
-  assert.match(summary, /## Sandbox\n- Not managed — users choose\./);
-  assert.match(summary, /## Telemetry\n- Not managed — users choose\./);
+  assert.equal(summary, "# Managed settings summary");
 });
 
-test("settings summary explains the unmanaged model sentinel and empty allow list", () => {
+test("settings summary includes configured empty values and omits unrelated settings", () => {
   const state = EMS.defaultState();
   state.model = { managed: true, value: "unmanaged", overridable: false };
   state.permissions.allow = { managed: true, overridable: false, rules: [] };
   const summary = EMS.summarizeSettings(state);
   assert.match(summary, /The enterprise model default is removed for this team; users choose\./);
   assert.match(summary, /An empty allow list is managed, so unmatched operations require approval\./);
+  assert.doesNotMatch(summary, /Auto routing tier|Default permission mode|not managed/i);
 });
 
 test("settings summary explains managed values and team-overridable defaults", () => {
@@ -82,6 +80,7 @@ test("settings summary explains managed values and team-overridable defaults", (
   assert.match(summary, /Only MCP servers matching these entries are allowed: URL `https:\/\/mcp\.example\.com\/\*`\./);
   assert.match(summary, /Sandboxing is required by this setting\./);
   assert.match(summary, /Network access is limited to these host patterns: `\*\.github\.com`\./);
+  assert.doesNotMatch(summary, /not managed|Other sandbox controls/i);
 });
 
 test("settings summary covers sandbox and telemetry controls", () => {
@@ -116,6 +115,7 @@ test("settings summary covers sandbox and telemetry controls", () => {
   assert.match(summary, /Custom HTTP headers are sent with each request: `Authorization`\./);
   assert.doesNotMatch(summary, /secret-value/);
   assert.match(summary, /User-configured dynamic headers are disabled\./);
+  assert.doesNotMatch(summary, /not managed/i);
 });
 
 test("related policies include only dependencies of emitted settings", () => {

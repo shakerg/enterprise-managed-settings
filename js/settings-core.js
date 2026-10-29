@@ -313,7 +313,6 @@
   }
 
   function summarizeSettings(s) {
-    const notManaged = "Not managed — users choose.";
     const teamDefault = " This is a team-overridable default.";
     const code = (value) => {
       const text = String(value == null ? "" : value).replace(/[\r\n]+/g, " ");
@@ -322,11 +321,14 @@
       const pad = /^ | $|`/.test(text) ? " " : "";
       return `${fence}${pad}${text}${pad}${fence}`;
     };
-    const configured = (label, isManaged, text, overridable) =>
-      isManaged ? `${text}${overridable ? teamDefault : ""}` : `${label}: ${notManaged}`;
-    const section = (title, lines) => `## ${title}\n${lines.map((line) => `- ${line}`).join("\n")}`;
+    const configured = (isManaged, text, overridable) =>
+      isManaged ? `${text}${overridable ? teamDefault : ""}` : "";
+    const section = (title, lines) => {
+      const configuredLines = lines.filter(Boolean);
+      return configuredLines.length ? `## ${title}\n${configuredLines.map((line) => `- ${line}`).join("\n")}` : "";
+    };
     const tri = (value, label, on, off) =>
-      value === "true" ? `${label} ${on}` : value === "false" ? `${label} ${off}` : `${label}: ${notManaged}`;
+      value === "true" ? `${label} ${on}` : value === "false" ? `${label} ${off}` : "";
     const list = (items) => items.map(code).join(", ");
     const matcher = (item) => {
       if (item.type === "serverCommand") return `command ${code(item.value)}`;
@@ -346,12 +348,12 @@
 
     const p = s.permissions;
     const permissionLines = [
-      configured("Bypass mode", p.disableBypassPermissionsMode, p.disableBypassPermissionsMode ? "Bypass (allow-all) mode is disabled." : "", false),
-      configured("Assisted permissions", p.disableAssistedPermissionsMode, p.disableAssistedPermissionsMode ? "Assisted permissions mode is disabled." : "", false),
-      configured("Default permission mode", p.defaultMode !== UNSET, p.defaultMode !== UNSET ? `New sessions default to ${code(p.defaultMode)} permission mode.` : "", false),
+      configured(p.disableBypassPermissionsMode, p.disableBypassPermissionsMode ? "Bypass (allow-all) mode is disabled." : "", false),
+      configured(p.disableAssistedPermissionsMode, p.disableAssistedPermissionsMode ? "Assisted permissions mode is disabled." : "", false),
+      configured(p.defaultMode !== UNSET, p.defaultMode !== UNSET ? `New sessions default to ${code(p.defaultMode)} permission mode.` : "", false),
       ...["deny", "ask", "allow"].map((kind) => {
         const rules = p[kind];
-        if (!rules.managed) return `${kind[0].toUpperCase()}${kind.slice(1)} rules: ${notManaged}`;
+        if (!rules.managed) return "";
         if (!rules.rules.length) {
           if (kind === "allow") return "An empty allow list is managed, so unmatched operations require approval.";
           return `${kind[0].toUpperCase()}${kind.slice(1)} rules are managed; no operations are listed.`;
@@ -370,17 +372,17 @@
     const strict = s.strictKnownMarketplaces;
     const pluginLines = [
       !plugins.managed
-        ? `Required or blocked plugins: ${notManaged}`
+        ? ""
         : plugins.items.length
           ? plugins.items.map((item) => `${item.enabled ? "Requires" : "Blocks"} plugin ${code(item.key)}.`).join("\n- ")
           : "No plugins are required or blocked.",
       !extra.managed
-        ? `Additional plugin marketplaces: ${notManaged}`
+        ? ""
         : extra.items.length
           ? `Users can access these additional marketplaces: ${extra.items.map(marketplace).join("; ")}.${extra.overridable ? teamDefault : ""}`
           : `No additional plugin marketplaces are configured.${extra.overridable ? teamDefault : ""}`,
       !strict.managed
-        ? `Plugin marketplace restrictions: ${notManaged}`
+        ? ""
         : strict.items.length
           ? `Plugin installation is restricted to these marketplaces: ${strict.items.map(source).join("; ")}.${strict.overridable ? teamDefault : ""}`
           : `Plugin installation is locked to no listed marketplaces.${strict.overridable ? teamDefault : ""}`,
@@ -388,9 +390,7 @@
 
     const sandbox = s.sandbox;
     const sandboxLines = [];
-    if (!sandbox.managed) {
-      sandboxLines.push(notManaged);
-    } else {
+    if (sandbox.managed) {
       sandboxLines.push(`Sandbox policy is managed.${sandbox.overridable ? teamDefault : ""}`);
       const addTri = (key, label, on, off) => {
         if (sandbox[key] !== UNSET) sandboxLines.push(tri(sandbox[key], label, on, off));
@@ -444,29 +444,17 @@
       if (network.proxyUrl) sandboxLines.push(`Network requests use proxy ${code(network.proxyUrl)}.`);
       if (sandbox.keychainAccess !== UNSET)
         sandboxLines.push(tri(sandbox.keychainAccess, "macOS Keychain access", "is not blocked by this setting.", "is blocked."));
-      const sandboxValues = [
-        sandbox.enabled, sandbox.failIfUnavailable, sandbox.allowBypass, sandbox.addCurrentWorkingDirectory,
-        sandbox.sandboxMcpServers, sandbox.sandboxLspServers, sandbox.allowDevToolAccess, sandbox.authGit,
-        sandbox.authGh, sandbox.keychainAccess, network.allowOutbound, network.allowLocalNetwork,
-      ];
-      const hasUnmanagedControl =
-        sandboxValues.includes(UNSET) || !sandbox.learningModeDeny ||
-        Object.values(fs).some((item) => !item.managed) ||
-        ["allowedHosts", "blockedHosts"].some((key) => !network[key].managed) || !network.proxyUrl;
-      if (hasUnmanagedControl) sandboxLines.push(`Other sandbox controls are ${notManaged}`);
     }
 
     const telemetry = s.telemetry;
     const telemetryLines = [];
-    if (!telemetry.managed) {
-      telemetryLines.push(notManaged);
-    } else {
+    if (telemetry.managed) {
       const t = telemetry;
       telemetryLines.push("OpenTelemetry export is managed.");
       telemetryLines.push(tri(t.enabled, "Export", "is enabled.", "is disabled."));
-      telemetryLines.push(t.endpoint ? `Collector endpoint: ${code(t.endpoint)}.` : `Collector endpoint: ${notManaged}`);
-      telemetryLines.push(t.protocol ? `Export protocol: ${code(t.protocol)}.` : `Export protocol: ${notManaged}`);
-      telemetryLines.push(t.serviceName ? `Service name: ${code(t.serviceName)}.` : `Service name: ${notManaged}`);
+      if (t.endpoint) telemetryLines.push(`Collector endpoint: ${code(t.endpoint)}.`);
+      if (t.protocol) telemetryLines.push(`Export protocol: ${code(t.protocol)}.`);
+      if (t.serviceName) telemetryLines.push(`Service name: ${code(t.serviceName)}.`);
       Object.entries({
         identity: "account and device identity",
         prompts: "prompts and model input",
@@ -480,21 +468,14 @@
       telemetryLines.push(tri(t.captureContent, "Legacy content capture", "is on.", "is off."));
       telemetryLines.push(tri(t.lockCaptureContent, "Unconfigured content capture", "cannot be enabled by local settings.", "may be enabled by local settings."));
       const attributes = Object.entries(kvToObj(t.resourceAttributes));
-      telemetryLines.push(attributes.length
-        ? `Resource attributes: ${attributes.map(([key, value]) => `${code(key)} = ${code(value)}`).join(", ")}.`
-        : `Resource attributes: ${notManaged}`);
+      if (attributes.length) telemetryLines.push(`Resource attributes: ${attributes.map(([key, value]) => `${code(key)} = ${code(value)}`).join(", ")}.`);
       const headers = Object.keys(kvToObj(t.headers));
-      telemetryLines.push(headers.length
-        ? `Custom HTTP headers are sent with each request: ${headers.map(code).join(", ")}.`
-        : `Custom HTTP headers: ${notManaged}`);
-      telemetryLines.push(t.disableHeadersProvider
-        ? "User-configured dynamic headers are disabled."
-        : `Dynamic headers provider: ${notManaged}`);
+      if (headers.length) telemetryLines.push(`Custom HTTP headers are sent with each request: ${headers.map(code).join(", ")}.`);
+      if (t.disableHeadersProvider) telemetryLines.push("User-configured dynamic headers are disabled.");
     }
 
     const modelLines = [
       configured(
-        "Default model",
         s.model.managed,
         s.model.managed
           ? s.model.value === "auto"
@@ -506,7 +487,6 @@
         s.model.overridable
       ),
       configured(
-        "Auto routing tier",
         s.autoTier.managed,
         s.autoTier.managed
           ? s.autoTier.value === "unmanaged"
@@ -523,9 +503,9 @@
         ? "Users choose whether to enable computer use."
         : s.features.computerUse === "false"
           ? "Users cannot enable computer use."
-          : `Computer use: ${notManaged}`,
+          : "",
       !s.remoteControl.managed
-        ? `Remote control: ${notManaged}`
+        ? ""
         : s.remoteControl.mode === "disabled"
           ? "Remote control is disabled."
           : s.remoteControl.mode === "enabled"
@@ -535,16 +515,16 @@
               : `Remote control uses the unrecognized mode ${code(s.remoteControl.mode)}.`,
       s.forceRemoteSettingsRefresh
         ? "Clients must fetch fresh server-managed settings at startup."
-        : `Forced settings refresh: ${notManaged}`,
+        : "",
     ];
     const mcpLines = [
       !s.allowedMcpServers.managed
-        ? `MCP allowlist: ${notManaged}`
+        ? ""
         : s.allowedMcpServers.items.length
           ? `Only MCP servers matching these entries are allowed: ${s.allowedMcpServers.items.map(matcher).join("; ")}.${s.allowedMcpServers.overridable ? teamDefault : ""}`
           : `No MCP servers are allowed except built-in defaults.${s.allowedMcpServers.overridable ? teamDefault : ""}`,
       !s.deniedMcpServers.managed
-        ? `MCP denylist: ${notManaged}`
+        ? ""
         : s.deniedMcpServers.items.length
           ? `Blocked MCP servers: ${s.deniedMcpServers.items.map(matcher).join("; ")}.`
           : "No additional MCP servers are blocked.",
@@ -559,7 +539,7 @@
       section("MCP servers", mcpLines),
       section("Sandbox", sandboxLines),
       section("Telemetry", telemetryLines),
-    ].join("\n\n");
+    ].filter(Boolean).join("\n\n");
   }
 
   // ---------- parse (import) ----------
