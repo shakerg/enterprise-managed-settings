@@ -123,16 +123,17 @@
   // ------------------------------------------------------------------ metadata
   const CLIENTS = ["Copilot CLI", "VS Code", "Copilot app", "Cloud agent", "JetBrains"];
   const SUPPORT = {
-    disableBypass: [1, 1, 1, 0, 1],
-    rules: [1, 1, 1, 0, 0],
+    disableBypass: [1, 1, 1, 1, 1],
+    rules: [1, 1, 1, 1, 0],
+    defaultMode: [1, 1, 1, 0, 0],
     computerUse: [1, 0, 1, 0, 0],
     model: [1, 1, 1, 1, 0],
     autoTier: [1, 1, 0, 0, 0],
-    plugins: [1, 1, 1, 1, 1],
+    plugins: [1, 1, 1, 0, 1],
     telemetry: [1, 1, 1, 0, 1],
     remoteControl: [1, 1, 1, 0, 0],
     refresh: [1, 1, 1, 0, 0],
-    mcp: [1, 1, 1, 0, 1],
+    mcp: [1, 1, 1, 1, 1],
     sandbox: [1, 1, 1, 0, 0],
   };
 
@@ -485,12 +486,14 @@
         title: "Disable assisted permissions",
         key: "permissions.disableAssistedPermissionsMode",
         desc: "Prevents users from enabling assisted permissions. Doesn't affect bypass mode.",
+        sup: "rules",
         head: switchCtl("permissions.disableAssistedPermissionsMode", p.disableAssistedPermissionsMode, "", { muted: true }),
       })}
       ${card({
         title: "Default permission mode",
         key: "permissions.defaultMode",
         desc: "Default mode for new sessions. This is a default, not a lock. If the mode is blocked by policy, sessions start in manual approval.",
+        sup: "defaultMode",
         body: selectField("permissions.defaultMode", [
           ["", "Not managed"],
           ["manual", "manual"],
