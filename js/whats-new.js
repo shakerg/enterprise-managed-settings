@@ -6,6 +6,13 @@
    scripts/update-models.js appends model entries automatically. Keep the JSON array valid. */
 window.EMS_WHATS_NEW = [
   {
+    "date": "2026-11-03",
+    "type": "setting",
+    "title": "Configure an organization help page for Copilot CLI",
+    "step": "access",
+    "key": "communication.support.url"
+  },
+  {
     "date": "2026-10-29",
     "type": "setting",
     "title": "Client support updated for allowed MCP servers",
