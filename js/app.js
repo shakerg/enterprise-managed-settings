@@ -127,6 +127,7 @@
     rules: [1, 1, 1, 1, 0],
     defaultMode: [1, 1, 1, 0, 0],
     computerUse: [1, 0, 1, 0, 0],
+    supportUrl: [1, 0, 0, 0, 0],
     model: [1, 1, 1, 1, 0],
     autoTier: [1, 1, 0, 0, 0],
     plugins: [1, 1, 1, 0, 1],
@@ -141,7 +142,7 @@
     { id: "welcome", label: "Get started", render: renderWelcome },
     { id: "model", label: "Models", render: renderModel, keys: ["model", "autoTier"] },
     { id: "permissions", label: "Permissions", render: renderPermissions, keys: ["permissions"] },
-    { id: "access", label: "Features & access", render: renderAccess, keys: ["features", "remoteControl", "forceRemoteSettingsRefresh"] },
+    { id: "access", label: "Features & access", render: renderAccess, keys: ["features", "remoteControl", "forceRemoteSettingsRefresh", "communication"] },
     { id: "plugins", label: "Plugins", render: renderPlugins, keys: ["enabledPlugins", "extraKnownMarketplaces", "strictKnownMarketplaces"] },
     { id: "mcp", label: "MCP servers", render: renderMcp, keys: ["allowedMcpServers", "deniedMcpServers"] },
     { id: "sandbox", label: "Sandbox", render: renderSandbox, keys: ["sandbox"] },
@@ -519,7 +520,7 @@
   function renderAccess() {
     const rc = state.remoteControl;
     return `
-      ${header(null, "Features &amp; access", "Control computer use, remote control of sessions, and how clients refresh server-managed policy.")}
+      ${header(null, "Features &amp; access", "Control computer use, remote control of sessions, organization help links, and how clients refresh server-managed policy.")}
       ${stepIssuesHtml("access")}
       ${card({
         title: "Computer use",
@@ -551,6 +552,17 @@
         desc: "Requires a fresh server-managed settings download at startup, skipping the one-hour cache. If the download fails, affected features are restricted, so users need a network connection. Deliver it through MDM or a local file for it to apply from the first startup.",
         sup: "refresh",
         head: switchCtl("forceRemoteSettingsRefresh", state.forceRemoteSettingsRefresh, "", { muted: true }),
+      })}
+      ${card({
+        title: "Organization help page",
+        key: "communication.support.url",
+        desc: "An informational help page URL. Copilot CLI can link to it wherever it would otherwise tell users to contact their administrator.",
+        sup: "supportUrl",
+        body: textField("communication.supportUrl", {
+          label: "Absolute HTTP or HTTPS URL",
+          placeholder: "https://example.com/copilot-help",
+          type: "url",
+        }),
       })}
     `;
   }

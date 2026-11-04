@@ -73,6 +73,7 @@
         allow: { managed: false, overridable: false, rules: [] },
       },
       features: { computerUse: UNSET },
+      communication: { supportUrl: "" },
       forceRemoteSettingsRefresh: false,
       remoteControl: { managed: false, mode: "requireSSO", orgs: [] },
       enabledPlugins: { managed: false, items: [] }, // {key, enabled}
@@ -210,6 +211,8 @@
 
     if (s.model.managed && clean(s.model.value)) out.model = wrap(clean(s.model.value), s.model.overridable);
     if (s.autoTier.managed && s.autoTier.value) out.autoTier = wrap(s.autoTier.value, s.autoTier.overridable);
+    if (clean(s.communication.supportUrl))
+      out.communication = { support: { url: clean(s.communication.supportUrl) } };
 
     const p = {};
     if (s.permissions.disableBypassPermissionsMode) p.disableBypassPermissionsMode = "disable";
@@ -516,6 +519,9 @@
       s.forceRemoteSettingsRefresh
         ? "Clients must fetch fresh server-managed settings at startup."
         : "",
+      clean(s.communication.supportUrl)
+        ? `Copilot CLI can link users to the organization help page ${code(clean(s.communication.supportUrl))} when it would otherwise direct them to contact their administrator.`
+        : "",
     ];
     const mcpLines = [
       !s.allowedMcpServers.managed
@@ -619,6 +625,9 @@
       };
     }
 
+    if (isObj(src.communication) && isObj(src.communication.support) && src.communication.support.url != null)
+      s.communication.supportUrl = String(src.communication.support.url);
+
     s.forceRemoteSettingsRefresh = src.forceRemoteSettingsRefresh === true || src.forceRemoteSettingsRefresh === "true";
 
     if (src.allowedMcpServers !== undefined) {
@@ -706,6 +715,19 @@
 
     if (s.remoteControl.managed && s.remoteControl.mode === "requireSSO" && !s.remoteControl.orgs.filter((o) => clean(o)).length)
       add("error", "access", 'remoteControl mode "requireSSO" requires at least one organization.');
+
+    const supportUrl = clean(s.communication.supportUrl);
+    if (supportUrl) {
+      let valid = /^https?:\/\//i.test(supportUrl);
+      if (valid) {
+        try {
+          valid = !!new URL(supportUrl).hostname;
+        } catch {
+          valid = false;
+        }
+      }
+      if (!valid) add("error", "access", "Organization help page must be an absolute http or https URL.");
+    }
 
     if (s.enabledPlugins.managed) {
       s.enabledPlugins.items.forEach((i) => {

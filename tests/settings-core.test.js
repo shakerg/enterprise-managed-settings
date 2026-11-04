@@ -10,6 +10,7 @@ const DOCS_EXAMPLE = {
   features: { computerUse: false },
   model: "auto",
   autoTier: "intelligence",
+  communication: { support: { url: "https://example.com/copilot-help" } },
   permissions: {
     disableBypassPermissionsMode: "disable",
     deny: ["Shell(rm -rf *)", "Read(~/.ssh/**)", "Edit(//etc/**)", "Domain(*.unapproved.example)"],
@@ -135,6 +136,23 @@ test("related policies include only dependencies of emitted settings", () => {
 test("docs example round-trips through parse -> build", () => {
   const out = EMS.buildSettings(EMS.parseSettings(DOCS_EXAMPLE));
   assert.deepEqual(out, DOCS_EXAMPLE);
+});
+
+test("organization help URL round-trips and validates absolute HTTP(S) URLs", () => {
+  const state = EMS.parseSettings({ communication: { support: { url: "https://example.com/help" } } });
+  assert.equal(state.communication.supportUrl, "https://example.com/help");
+  assert.deepEqual(EMS.buildSettings(state), { communication: { support: { url: "https://example.com/help" } } });
+  assert.deepEqual(EMS.validate(state), []);
+  assert.match(EMS.summarizeSettings(state), /Copilot CLI can link users to the organization help page `https:\/\/example\.com\/help`/);
+
+  for (const url of ["http://help.example.com", "https://help.example.com/path"]) {
+    state.communication.supportUrl = url;
+    assert.deepEqual(EMS.validate(state), [], url);
+  }
+  for (const url of ["help.example.com", "ftp://example.com", "https://"]) {
+    state.communication.supportUrl = url;
+    assert.ok(EMS.validate(state).some((issue) => issue.level === "error" && issue.step === "access"), url);
+  }
 });
 
 test("overridable wrappers round-trip", () => {
