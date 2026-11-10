@@ -1,7 +1,7 @@
 /* Offline fallback for the model pick list. Generated from the GitHub docs
    "Supported AI models in Copilot" table; the app refreshes it live when online. */
 window.EMS_MODELS_SNAPSHOT = {
-  "fetchedAt": "2026-10-27",
+  "fetchedAt": "2026-11-10",
   "models": [
     {
       "id": "gpt-5.3-codex",
@@ -72,6 +72,12 @@ window.EMS_MODELS_SNAPSHOT = {
     {
       "id": "claude-fable-5.1",
       "name": "Claude Fable 5.1",
+      "provider": "Anthropic",
+      "status": "GA"
+    },
+    {
+      "id": "claude-fable-5.2",
+      "name": "Claude Fable 5.2",
       "provider": "Anthropic",
       "status": "GA"
     },
