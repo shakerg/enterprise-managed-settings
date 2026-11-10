@@ -378,6 +378,8 @@ In Copilot CLI, this managed default takes precedence over the user's `defaultPe
 
 Configures OpenTelemetry export, routing Copilot usage data to a collector of your choice.
 
+For the exported signals and attributes, see [OpenTelemetry reference](/en/enterprise-cloud@latest/copilot/reference/enterprise-administrators/opentelemetry-reference).
+
 See the [supported keys table](#supported-keys) for client support.
 
 When you set the `telemetry` property, Copilot telemetry is sent to the endpoint you specify. The following sub-properties are supported:
@@ -391,7 +393,7 @@ When you set the `telemetry` property, Copilot telemetry is sent to the endpoint
 * `serviceName`: A label for the telemetry service name (for example, `"copilot"`).
 * `resourceAttributes`: An object of OpenTelemetry resource attributes to attach to all exported telemetry (for example, `{"deployment.environment": "production"}`).
 * `headers`: An object of literal HTTP headers to include with each telemetry request (for example, an `Authorization` header for your collector). You must configure `endpoint` in the same `telemetry` object. Header values are not included in logs or status output. Use HTTPS when headers contain credentials because HTTP sends values in plaintext.
-* `headersProvider`: An object that runs a command to supply fresh OTLP headers, or `false` to disable dynamic headers. A managed helper overrides a user helper, and managed static `headers` take precedence over user helper output. This property applies to Copilot CLI. For fields and behavior, see [GitHub Copilot CLI command reference](/en/enterprise-cloud@latest/copilot/reference/copilot-cli-reference/cli-command-reference#dynamic-authentication-headers).
+* `headersProvider`: An object that runs a command to supply fresh OTLP headers, or `false` to disable dynamic headers. A managed helper overrides a user helper, and managed static `headers` take precedence over user helper output. This property applies to Copilot CLI. For fields and behavior, see [Dynamic authentication headers](/en/enterprise-cloud@latest/copilot/reference/enterprise-administrators/opentelemetry-reference#dynamic-authentication-headers).
 
 Managed `telemetry` values take precedence over local settings, SDK configuration, and environment variables. If more than one managed source defines `telemetry`, the highest-precedence source supplies the complete managed `telemetry` object. Objects from lower-precedence managed sources are not merged into it.
 
