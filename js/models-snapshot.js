@@ -1,7 +1,7 @@
 /* Offline fallback for the model pick list. Generated from the GitHub docs
    "Supported AI models in Copilot" table; the app refreshes it live when online. */
 window.EMS_MODELS_SNAPSHOT = {
-  "fetchedAt": "2026-11-10",
+  "fetchedAt": "2026-11-11",
   "models": [
     {
       "id": "gpt-5.3-codex",
@@ -144,6 +144,12 @@ window.EMS_MODELS_SNAPSHOT = {
     {
       "id": "gemini-4-argon",
       "name": "Gemini 4 Argon",
+      "provider": "Google",
+      "status": "GA"
+    },
+    {
+      "id": "gemini-4-carbon",
+      "name": "Gemini 4 Carbon",
       "provider": "Google",
       "status": "GA"
     },
