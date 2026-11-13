@@ -6,6 +6,13 @@
    scripts/update-models.js appends model entries automatically. Keep the JSON array valid. */
 window.EMS_WHATS_NEW = [
   {
+    "date": "2026-11-13",
+    "type": "setting",
+    "title": "Network host rules are no longer configurable in server-managed settings",
+    "step": "sandbox",
+    "key": "sandbox"
+  },
+  {
     "date": "2026-11-12",
     "type": "setting",
     "title": "Clarified sandbox language server behavior in Copilot CLI",

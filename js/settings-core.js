@@ -102,8 +102,6 @@
         network: {
           allowOutbound: UNSET,
           allowLocalNetwork: UNSET,
-          allowedHosts: { managed: false, items: [] },
-          blockedHosts: { managed: false, items: [] },
           proxyUrl: "",
         },
         keychainAccess: UNSET,
@@ -300,9 +298,6 @@
       const net = {};
       setIf(net, "allowOutbound", tri(sb.network.allowOutbound));
       setIf(net, "allowLocalNetwork", tri(sb.network.allowLocalNetwork));
-      ["allowedHosts", "blockedHosts"].forEach((k) => {
-        if (sb.network[k].managed) net[k] = sb.network[k].items.map(clean).filter(Boolean);
-      });
       if (clean(sb.network.proxyUrl)) net.proxy = { url: clean(sb.network.proxyUrl) };
       if (Object.keys(net).length) up.network = net;
       const kc = tri(sb.keychainAccess);
@@ -432,18 +427,6 @@
       const network = sandbox.network;
       if (network.allowOutbound !== UNSET) sandboxLines.push(tri(network.allowOutbound, "Outbound network access", "is not blocked by this setting.", "is blocked."));
       if (network.allowLocalNetwork !== UNSET) sandboxLines.push(tri(network.allowLocalNetwork, "Local network access", "is not restricted by this setting.", "is restricted."));
-      [
-        ["allowedHosts", "Allowed network hosts"],
-        ["blockedHosts", "Blocked network hosts"],
-      ].forEach(([key, label]) => {
-        const item = network[key];
-        if (!item.managed) return;
-        sandboxLines.push(item.items.length
-          ? `${key === "allowedHosts" ? "Network access is limited to these host patterns" : "These network hosts are blocked"}: ${list(item.items)}.`
-          : key === "allowedHosts"
-            ? "No allowed network host patterns are listed."
-            : "No additional network hosts are blocked.");
-      });
       if (network.proxyUrl) sandboxLines.push(`Network requests use proxy ${code(network.proxyUrl)}.`);
       if (sandbox.keychainAccess !== UNSET)
         sandboxLines.push(tri(sandbox.keychainAccess, "macOS Keychain access", "is not blocked by this setting.", "is blocked."));
@@ -658,9 +641,6 @@
       const net = isObj(up.network) ? up.network : {};
       sb.network.allowOutbound = toTri(net.allowOutbound);
       sb.network.allowLocalNetwork = toTri(net.allowLocalNetwork);
-      ["allowedHosts", "blockedHosts"].forEach((k) => {
-        if (Array.isArray(net[k])) sb.network[k] = { managed: true, items: net[k].map(String) };
-      });
       sb.network.proxyUrl = (isObj(net.proxy) && net.proxy.url) || "";
       if (isObj(up.seatbelt)) sb.keychainAccess = toTri(up.seatbelt.keychainAccess);
     }
@@ -768,11 +748,6 @@
     if (sb.managed) {
       add("info", "sandbox", "Adding sandbox enforces minimum client versions: VS Code 1.141.0, Copilot CLI 1.0.93, Copilot app 1.1.26.");
       if (sb.failIfUnavailable === "true" && sb.enabled !== "true") add("warning", "sandbox", "failIfUnavailable has no effect unless enabled is also true.");
-      ["allowedHosts", "blockedHosts"].forEach((k) =>
-        sb.network[k].items.forEach((h) => {
-          if (/[:/]/.test(h)) add("error", "sandbox", `${k} entry "${h}" must be a hostname or IP without scheme, path, or port.`);
-        })
-      );
       ["readwritePaths", "readonlyPaths", "deniedPaths"].forEach((k) =>
         sb.filesystem[k].items.forEach((pth) => {
           if (!/^(\/|~|[A-Za-z]:[\\/]|\$)/.test(pth)) add("warning", "sandbox", `${k} entry "${pth}" should be an absolute path.`);

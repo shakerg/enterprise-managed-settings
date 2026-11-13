@@ -12,6 +12,7 @@ Or open `index.html` locally in a browser (no server or build step needed).
 1. Pick a starting point (Blank, Starter, Secure baseline, Locked down) or **Import** an existing file.
 2. Step through Models, Permissions, Features & access (including an optional organization help page for Copilot CLI), Plugins, MCP servers, Sandbox, and Telemetry. Turn on **Manage** where available; unmanaged settings are omitted, while the help page is included when populated.
    The **Default model** pick list is loaded live from the [Supported AI models](https://docs.github.com/en/copilot/reference/ai-models/supported-models) docs page (cached for 24 hours, with a bundled snapshot in `js/models-snapshot.js` as an offline fallback). A custom model ID can also be entered.
+   Network host allow/block rules are not supported in server-managed `managed-settings.json`; configure those through Copilot CLI user or device-managed settings.
 3. Switch the live preview between generated JSON and a plain-English summary. Copy the summary as Markdown, or review contextual policy notes and validation before downloading or copying the JSON.
 4. Commit it to `copilot/managed-settings.json` in your enterprise's `.github-private` repository.
 
