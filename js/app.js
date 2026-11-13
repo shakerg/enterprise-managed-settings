@@ -716,7 +716,7 @@
           ${triRow(`${S}.allowBypass`, "<code>allowBypass</code>", "Off prevents commands running outside the sandbox and session-level opt-outs.")}
           ${triRow(`${S}.addCurrentWorkingDirectory`, "<code>addCurrentWorkingDirectory</code>", "Off stops automatically granting read/write to the current directory.")}
           ${triRow(`${S}.sandboxMcpServers`, "<code>sandboxMcpServers</code>", "On requires local MCP servers to run in the sandbox.")}
-          ${triRow(`${S}.sandboxLspServers`, "<code>sandboxLspServers</code>", "On requires language servers to run in the sandbox.")}
+          ${triRow(`${S}.sandboxLspServers`, "<code>sandboxLspServers</code>", "On requires language servers to run in the sandbox. In Copilot CLI, this Boolean defaults to On and applies when sandboxing is enabled.")}
           ${triRow(`${S}.allowDevToolAccess`, "<code>allowDevToolAccess</code>", "Off blocks automatic access to dev-tool config, caches, and registries. This can break builds.")}
           <div class="tri-row"><div class="tri-row-text"><div class="label"><code>learningMode: "deny"</code></div><div class="hint">Windows only. Enforce restrictions and record blocked access. (<code>"allow"</code> only works through native Windows device management.)</div></div>${switchCtl(`${S}.learningModeDeny`, sb.learningModeDeny, "", { muted: true })}</div>
         </div>

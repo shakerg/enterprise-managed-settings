@@ -6,6 +6,13 @@
    scripts/update-models.js appends model entries automatically. Keep the JSON array valid. */
 window.EMS_WHATS_NEW = [
   {
+    "date": "2026-11-12",
+    "type": "setting",
+    "title": "Clarified sandbox language server behavior in Copilot CLI",
+    "step": "sandbox",
+    "key": "sandboxLspServers"
+  },
+  {
     "date": "2026-11-11",
     "type": "model",
     "title": "1 model added: gemini-4-carbon",
