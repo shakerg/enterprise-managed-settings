@@ -735,12 +735,11 @@
       <h3 style="font-size: var(--fs-md); margin-top: 4px">Network <span class="card-key">userPolicy.network</span></h3>
       <div class="subcard"><div>
         ${triRow(`${S}.network.allowOutbound`, "<code>allowOutbound</code>", "Off blocks outbound network access.")}
-        ${triRow(`${S}.network.allowLocalNetwork`, "<code>allowLocalNetwork</code>", "Off restricts local network access. Behavior varies by OS.")}
+        ${triRow(`${S}.network.allowLocalNetwork`, "<code>allowLocalNetwork</code>", "Off restricts local network access. Windows proxying and CLI host rules require it; behavior varies by OS.")}
       </div>
       ${textField(`${S}.network.proxyUrl`, { label: "Upstream proxy URL <span class=\"card-key\">proxy.url</span>", placeholder: "http://proxy.example.com:8080", mono: true })}
       </div>
-      ${managedList(`${S}.network.allowedHosts`, "Allowed hosts", "Hostnames or IPs only, without URLs or ports. <code>*.example.com</code> matches subdomains; <code>*</code> matches every host.", "*.github.com")}
-      ${managedList(`${S}.network.blockedHosts`, "Blocked hosts", "Take precedence over allowed hosts. Blocking a domain also blocks its subdomains.", "tracker.example.com")}
+      <p class="hint">Host allow/block rules (including CIDR rules) are not supported in server-managed <code>managed-settings.json</code>. Configure them through Copilot CLI user or device-managed settings; see <a href="https://docs.github.com/en/enterprise-cloud@latest/copilot/how-tos/cloud-and-local-sandboxes/configuring-local-sandbox-settings#configuring-network-settings" target="_blank" rel="noopener">network settings guidance</a>.</p>
       <h3 style="font-size: var(--fs-md); margin-top: 4px">macOS Seatbelt <span class="card-key">userPolicy.seatbelt</span></h3>
       <div class="subcard"><div>${triRow(`${S}.keychainAccess`, "<code>keychainAccess</code>", "Off prevents sandboxed processes from accessing the macOS Keychain.")}</div></div>
     `;

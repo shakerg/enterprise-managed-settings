@@ -71,7 +71,6 @@ test("settings summary explains managed values and team-overridable defaults", (
   state.allowedMcpServers = { managed: true, overridable: false, items: [{ type: "serverUrl", value: "https://mcp.example.com/*" }] };
   state.sandbox.managed = true;
   state.sandbox.enabled = "true";
-  state.sandbox.network.allowedHosts = { managed: true, items: ["*.github.com"] };
 
   const summary = EMS.summarizeSettings(state);
   assert.match(summary, /New conversations default to `claude-sonnet-4\.6`\. This is a team-overridable default\./);
@@ -80,7 +79,6 @@ test("settings summary explains managed values and team-overridable defaults", (
   assert.match(summary, /Remote control is limited to clients with SSO authorization for `acme`/);
   assert.match(summary, /Only MCP servers matching these entries are allowed: URL `https:\/\/mcp\.example\.com\/\*`\./);
   assert.match(summary, /Sandboxing is required by this setting\./);
-  assert.match(summary, /Network access is limited to these host patterns: `\*\.github\.com`\./);
   assert.doesNotMatch(summary, /not managed|Other sandbox controls/i);
 });
 
@@ -180,12 +178,31 @@ test("full sandbox userPolicy round-trips", () => {
       auth: { git: false, gh: false },
       userPolicy: {
         filesystem: { readwritePaths: ["/tmp/work"], readonlyPaths: [], deniedPaths: ["~/.ssh"] },
-        network: { allowOutbound: true, allowLocalNetwork: false, allowedHosts: ["*.github.com"], blockedHosts: ["evil.example"], proxy: { url: "http://proxy:8080" } },
+        network: { allowOutbound: true, allowLocalNetwork: false, proxy: { url: "http://proxy:8080" } },
         seatbelt: { keychainAccess: false },
       },
     },
   };
   assert.deepEqual(EMS.buildSettings(EMS.parseSettings(src)), src);
+});
+
+test("server-managed network ignores unsupported host rules", () => {
+  const parsed = EMS.parseSettings({
+    sandbox: {
+      userPolicy: {
+        network: {
+          allowOutbound: false,
+          allowedHosts: ["*.example.com"],
+          blockedHosts: ["blocked.example.com"],
+        },
+      },
+    },
+  });
+
+  assert.deepEqual(Object.keys(parsed.sandbox.network).sort(), ["allowLocalNetwork", "allowOutbound", "proxyUrl"]);
+  assert.deepEqual(EMS.buildSettings(parsed), {
+    sandbox: { userPolicy: { network: { allowOutbound: false } } },
+  });
 });
 
 test("legacy permissions.model is imported as top-level model", () => {
@@ -206,9 +223,8 @@ test("validation catches common mistakes", () => {
   s.telemetry.enabled = "true";
   s.enabledPlugins = { managed: true, items: [{ key: "noat", enabled: true }] };
   s.sandbox.managed = true;
-  s.sandbox.network.allowedHosts = { managed: true, items: ["https://x.com"] };
   const errors = EMS.validate(s).filter((i) => i.level === "error").map((i) => i.step);
-  for (const step of ["access", "permissions", "telemetry", "plugins", "sandbox"]) assert.ok(errors.includes(step), step);
+  for (const step of ["access", "permissions", "telemetry", "plugins"]) assert.ok(errors.includes(step), step);
 });
 
 test("presets are valid", () => {
