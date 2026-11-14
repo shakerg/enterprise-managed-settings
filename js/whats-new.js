@@ -6,6 +6,12 @@
    scripts/update-models.js appends model entries automatically. Keep the JSON array valid. */
 window.EMS_WHATS_NEW = [
   {
+    "date": "2026-11-14",
+    "type": "model",
+    "title": "1 model added: gemini-4-hydrogen",
+    "step": "model"
+  },
+  {
     "date": "2026-11-13",
     "type": "setting",
     "title": "Network host rules are no longer configurable in server-managed settings",
