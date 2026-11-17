@@ -1,7 +1,7 @@
 /* Offline fallback for the model pick list. Generated from the GitHub docs
    "Supported AI models in Copilot" table; the app refreshes it live when online. */
 window.EMS_MODELS_SNAPSHOT = {
-  "fetchedAt": "2026-11-14",
+  "fetchedAt": "2026-11-17",
   "models": [
     {
       "id": "gpt-5.3-codex",
@@ -24,12 +24,6 @@ window.EMS_MODELS_SNAPSHOT = {
     {
       "id": "gpt-5.6-sol",
       "name": "GPT-5.6 Sol",
-      "provider": "OpenAI",
-      "status": "GA"
-    },
-    {
-      "id": "gpt-5.6-terra",
-      "name": "GPT-5.6 Terra",
       "provider": "OpenAI",
       "status": "GA"
     },
@@ -102,12 +96,6 @@ window.EMS_MODELS_SNAPSHOT = {
     {
       "id": "claude-opus-4.8-fast",
       "name": "Claude Opus 4.8 (fast mode) (preview)",
-      "provider": "Anthropic",
-      "status": "GA"
-    },
-    {
-      "id": "claude-opus-5",
-      "name": "Claude Opus 5",
       "provider": "Anthropic",
       "status": "GA"
     },
