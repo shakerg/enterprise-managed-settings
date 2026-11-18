@@ -19,6 +19,7 @@ For instructions on creating the file, see [Getting started with enterprise-mana
 | `permissions.disableAssistedPermissionsMode` | Prevents users from enabling assisted permissions                                                                                                                                                                                                            |
 | `permissions.defaultMode`                    | Controls the default permission mode for new sessions                                                                                                                                                                                                        |
 | `features.computerUse`                       | Controls whether users can enable computer use                                                                                                                                                                                                               |
+| `features.browserUse`                        | Controls whether users can enable browser use                                                                                                                                                                                                                |
 | `model`                                      | Sets your preferred model as the default for new conversations                                                                                                                                                                                               |
 | `fusionTier`                                 | Sets the default effort level for new conversations when the selected model is `fusion`                                                                                                                                                                      |
 | `autoTier`                                   | Sets the default Auto routing tier for new conversations                                                                                                                                                                                                     |
@@ -52,8 +53,9 @@ Some keys require a minimum version in certain clients. See the footnotes in the
 | `permissions.disableAssistedPermissionsMode` |                    |                                                                                                             |                                                                                                             |                                                                                                             |  |  |
 | `permissions.defaultMode`                    |                    |                                                                                                             |                                                                                                             |  |  |  |
 | `features.computerUse`                       |                    |  |                                                                                                             |  |  |  |
+| `features.browserUse`                        |                    |                                                                                                             |                                                                                                             |  |  |                                                                                                             |
 | `model`                                      |                    |                                                                                                             |                                                                                                             |                                                                                                             |                                                                                                             |  |
-| `fusionTier`                                 | [^fusion-tier-cli] |                                            [^fusion-tier-vscode]                                            |                                              [^fusion-tier-app]                                             |  |  |  |
+| `fusionTier`                                 | [^fusion-tier-cli] |                                            [^fusion-tier-vscode]                                            |                                              [^fusion-tier-app]                                             |  |  |                                           [^fusion-tier-jetbrains]                                          |
 | `autoTier`                                   |  [^auto-tier-cli]  |                                             [^auto-tier-vscode]                                             |  |  |  |  |
 | `communication.support.url`                  |                    |  |  |  |  |  |
 | `enabledPlugins`                             |                    |                                                                                                             |                                                                                                             |  |                                                                                                             |                                                                                                             |
@@ -75,6 +77,8 @@ Some keys require a minimum version in certain clients. See the footnotes in the
 [^fusion-tier-vscode]: `fusionTier` requires VS Code 1.144.0 or later.
 
 [^fusion-tier-app]: `fusionTier` requires the GitHub Copilot app 1.1.33-4 or later.
+
+[^fusion-tier-jetbrains]: `fusionTier` requires version 1.21.0 or later of the GitHub Copilot plugin for JetBrains IDEs.
 
 [^auto-tier-cli]: `autoTier` requires Copilot CLI 1.0.87-0 or later.
 
@@ -103,7 +107,8 @@ The following example shows these keys in one managed settings file.
 ```json
 {
   "features": {
-    "computerUse": false
+    "computerUse": false,
+    "browserUse": false
   },
   "model": "auto",
   "autoTier": "intelligence",
@@ -198,6 +203,13 @@ The following example shows these keys in one managed settings file.
 ## features.computerUse
 
 Controls whether users can enable computer use in GitHub Copilot CLI and the GitHub Copilot app. Set `features.computerUse` to `false` to prevent users from enabling computer use. A local setting cannot override this restriction. Set the value to `true`, or omit the key, to allow users to control computer use through their local settings.
+
+## features.browserUse
+
+> [!NOTE]
+> Browser use is in public preview and subject to change.
+
+Controls whether users can enable browser use in a Copilot surface. Set `features.browserUse` to `false` to prevent users from enabling browser use. A local setting cannot override this restriction. Set the value to `true`, or omit the key, to allow users to control browser use through their local settings.
 
 ## enabledPlugins
 
