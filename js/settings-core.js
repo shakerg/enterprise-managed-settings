@@ -63,6 +63,7 @@
   function defaultState() {
     return {
       model: { managed: false, value: "auto", overridable: false },
+      fusionTier: { managed: false, value: "standard", overridable: false },
       autoTier: { managed: false, value: "balance", overridable: false },
       permissions: {
         disableBypassPermissionsMode: false,
@@ -72,7 +73,7 @@
         ask: { managed: false, overridable: false, rules: [] },
         allow: { managed: false, overridable: false, rules: [] },
       },
-      features: { computerUse: UNSET },
+      features: { computerUse: UNSET, browserUse: UNSET },
       communication: { supportUrl: "" },
       forceRemoteSettingsRefresh: false,
       remoteControl: { managed: false, mode: "requireSSO", orgs: [] },
@@ -205,9 +206,11 @@
 
     const features = {};
     setIf(features, "computerUse", tri(s.features.computerUse));
+    setIf(features, "browserUse", tri(s.features.browserUse));
     if (Object.keys(features).length) out.features = features;
 
     if (s.model.managed && clean(s.model.value)) out.model = wrap(clean(s.model.value), s.model.overridable);
+    if (s.fusionTier.managed && s.fusionTier.value) out.fusionTier = wrap(s.fusionTier.value, s.fusionTier.overridable);
     if (s.autoTier.managed && s.autoTier.value) out.autoTier = wrap(s.autoTier.value, s.autoTier.overridable);
     if (clean(s.communication.supportUrl))
       out.communication = { support: { url: clean(s.communication.supportUrl) } };
@@ -473,6 +476,17 @@
         s.model.overridable
       ),
       configured(
+        s.fusionTier.managed,
+        s.fusionTier.managed
+          ? s.fusionTier.value === "unmanaged"
+            ? "Fusion effort tier is left to users and repositories."
+            : s.fusionTier.overridable
+              ? `New Fusion model selections default to the ${code(s.fusionTier.value)} effort tier.`
+              : `New Fusion model selections use the ${code(s.fusionTier.value)} effort tier; users and repositories cannot override it.`
+          : "",
+        s.fusionTier.overridable
+      ),
+      configured(
         s.autoTier.managed,
         s.autoTier.managed
           ? s.autoTier.value === "unmanaged"
@@ -489,6 +503,11 @@
         ? "Users choose whether to enable computer use."
         : s.features.computerUse === "false"
           ? "Users cannot enable computer use."
+          : "",
+      s.features.browserUse === "true"
+        ? "Users choose whether to enable browser use."
+        : s.features.browserUse === "false"
+          ? "Users cannot enable browser use."
           : "",
       !s.remoteControl.managed
         ? ""
@@ -537,7 +556,10 @@
     const src = typeof json === "string" ? JSON.parse(json) : json;
     if (!isObj(src)) throw new Error("managed-settings.json must contain a JSON object.");
 
-    if (isObj(src.features) && "computerUse" in src.features) s.features.computerUse = toTri(src.features.computerUse);
+    if (isObj(src.features)) {
+      if ("computerUse" in src.features) s.features.computerUse = toTri(src.features.computerUse);
+      if ("browserUse" in src.features) s.features.browserUse = toTri(src.features.browserUse);
+    }
 
     // Legacy: permissions.model is read when top-level model is absent.
     let modelRaw = src.model;
@@ -545,6 +567,10 @@
     if (modelRaw !== undefined) {
       const u = unwrap(modelRaw);
       s.model = { managed: true, value: String(u.value), overridable: u.overridable };
+    }
+    if (src.fusionTier !== undefined) {
+      const u = unwrap(src.fusionTier);
+      s.fusionTier = { managed: true, value: String(u.value), overridable: u.overridable };
     }
     if (src.autoTier !== undefined) {
       const u = unwrap(src.autoTier);
@@ -678,6 +704,8 @@
     const add = (level, step, message) => issues.push({ level, step, message });
 
     if (s.model.managed && !clean(s.model.value)) add("error", "model", "Default model is managed but has no value.");
+    if (s.fusionTier.managed && s.model.managed && clean(s.model.value) !== "fusion")
+      add("info", "model", 'fusionTier only applies when the selected model is "fusion".');
     if (s.autoTier.managed && s.model.managed && clean(s.model.value) !== "auto")
       add("info", "model", 'autoTier only applies when the selected model is "auto".');
 

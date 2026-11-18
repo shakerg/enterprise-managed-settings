@@ -127,8 +127,10 @@
     rules: [1, 1, 1, 1, 0],
     defaultMode: [1, 1, 1, 0, 0],
     computerUse: [1, 0, 1, 0, 0],
+    browserUse: [1, 1, 1, 0, 1],
     supportUrl: [1, 0, 0, 0, 0],
     model: [1, 1, 1, 1, 0],
+    fusionTier: [1, 1, 1, 0, 1],
     autoTier: [1, 1, 0, 0, 0],
     plugins: [1, 1, 1, 0, 1],
     telemetry: [1, 1, 1, 0, 1],
@@ -376,6 +378,7 @@
 
   function renderModel() {
     const m = state.model;
+    const f = state.fusionTier;
     const t = state.autoTier;
     return `
       ${header(null, "Models", "Set the default model and Auto routing tier for new conversations. Users can still pick a different model per conversation.")}
@@ -389,6 +392,24 @@
         toggle: { path: "model.managed", checked: m.managed },
         body: modelPicker(),
         overridable: { path: "model.overridable", checked: m.overridable },
+      })}
+      ${card({
+        title: "Fusion effort tier",
+        key: "fusionTier",
+        desc: 'Default effort level when the selected model is <code>fusion</code>. Values are <code>standard</code>, <code>high</code>, <code>max</code>, or <code>unmanaged</code>. Requires Copilot CLI 1.0.104-3+, VS Code 1.144.0+, Copilot app 1.1.33-4+, or JetBrains plugin 1.21.0+.',
+        sup: "fusionTier",
+        toggle: { path: "fusionTier.managed", checked: f.managed },
+        body: selectField(
+          "fusionTier.value",
+          [
+            ["standard", "standard"],
+            ["high", "high"],
+            ["max", "max"],
+            ["unmanaged", "unmanaged (users and repositories choose)"],
+          ],
+          { label: "Effort tier" }
+        ),
+        overridable: { path: "fusionTier.overridable", checked: f.overridable },
       })}
       ${card({
         title: "Auto routing tier",
@@ -528,6 +549,13 @@
         desc: "Set to <strong>Block</strong> to stop users from enabling computer use. Local settings can't override it. <strong>Allow</strong> or <strong>Not set</strong> leaves it up to users.",
         sup: "computerUse",
         body: `<div>${tri("features.computerUse", state.features.computerUse, ["Not set", "Allow", "Block"])}</div>`,
+      })}
+      ${card({
+        title: "Browser use",
+        key: "features.browserUse",
+        desc: "This setting is in public preview and subject to change. Set to <strong>Block</strong> to stop users from enabling browser use. Local settings can't override it. <strong>Allow</strong> or <strong>Not set</strong> leaves it up to users.",
+        sup: "browserUse",
+        body: `<div>${tri("features.browserUse", state.features.browserUse, ["Not set", "Allow", "Block"])}</div>`,
       })}
       ${card({
         title: "Remote control",

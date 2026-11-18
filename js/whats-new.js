@@ -7,6 +7,20 @@
 window.EMS_WHATS_NEW = [
   {
     "date": "2026-11-18",
+    "type": "setting",
+    "title": "Configure Fusion effort tier for JetBrains",
+    "step": "model",
+    "key": "fusionTier"
+  },
+  {
+    "date": "2026-11-18",
+    "type": "setting",
+    "title": "Control browser use",
+    "step": "access",
+    "key": "features.browserUse"
+  },
+  {
+    "date": "2026-11-18",
     "type": "model",
     "title": "4 models added: gpt-6.2-astra, gpt-6.2-sol, mai-code-2 and 1 more",
     "step": "model"

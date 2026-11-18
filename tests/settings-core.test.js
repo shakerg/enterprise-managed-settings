@@ -7,7 +7,7 @@ const EMS = isNode ? require("../js/settings-core.js") : window.EMS;
 
 // Example configuration from the GitHub docs reference page.
 const DOCS_EXAMPLE = {
-  features: { computerUse: false },
+  features: { computerUse: false, browserUse: false },
   model: "auto",
   autoTier: "intelligence",
   communication: { support: { url: "https://example.com/copilot-help" } },
@@ -134,6 +134,21 @@ test("related policies include only dependencies of emitted settings", () => {
 test("docs example round-trips through parse -> build", () => {
   const out = EMS.buildSettings(EMS.parseSettings(DOCS_EXAMPLE));
   assert.deepEqual(out, DOCS_EXAMPLE);
+});
+
+test("browser use and Fusion effort tier round-trip", () => {
+  const src = { features: { browserUse: false }, model: "fusion", fusionTier: { overridable: "high" } };
+  const state = EMS.parseSettings(src);
+  assert.equal(state.features.browserUse, "false");
+  assert.equal(state.fusionTier.managed, true);
+  assert.equal(state.fusionTier.value, "high");
+  assert.equal(state.fusionTier.overridable, true);
+  assert.deepEqual(EMS.buildSettings(state), src);
+  assert.deepEqual(EMS.validate(state), []);
+  assert.match(EMS.summarizeSettings(state), /New Fusion model selections default to the `high` effort tier\./);
+
+  state.model.value = "auto";
+  assert.ok(EMS.validate(state).some((issue) => issue.level === "info" && issue.step === "model" && /fusionTier only applies/.test(issue.message)));
 });
 
 test("organization help URL round-trips and validates absolute HTTP(S) URLs", () => {
