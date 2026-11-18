@@ -1,7 +1,7 @@
 /* Offline fallback for the model pick list. Generated from the GitHub docs
    "Supported AI models in Copilot" table; the app refreshes it live when online. */
 window.EMS_MODELS_SNAPSHOT = {
-  "fetchedAt": "2026-11-17",
+  "fetchedAt": "2026-11-18",
   "models": [
     {
       "id": "gpt-5.3-codex",
@@ -54,6 +54,18 @@ window.EMS_MODELS_SNAPSHOT = {
     {
       "id": "gpt-6.1-terra",
       "name": "GPT-6.1 Terra",
+      "provider": "OpenAI",
+      "status": "GA"
+    },
+    {
+      "id": "gpt-6.2-astra",
+      "name": "GPT-6.2 Astra",
+      "provider": "OpenAI",
+      "status": "GA"
+    },
+    {
+      "id": "gpt-6.2-sol",
+      "name": "GPT-6.2 Sol",
       "provider": "OpenAI",
       "status": "GA"
     },
@@ -150,6 +162,18 @@ window.EMS_MODELS_SNAPSHOT = {
     {
       "id": "mai-code-1.1-flash",
       "name": "MAI-Code-1.1-Flash",
+      "provider": "Microsoft",
+      "status": "GA"
+    },
+    {
+      "id": "mai-code-2",
+      "name": "MAI Code 2",
+      "provider": "Microsoft",
+      "status": "GA"
+    },
+    {
+      "id": "mai-code-2-flash",
+      "name": "MAI Code 2 Flash",
       "provider": "Microsoft",
       "status": "GA"
     },
