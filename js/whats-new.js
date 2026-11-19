@@ -6,6 +6,12 @@
    scripts/update-models.js appends model entries automatically. Keep the JSON array valid. */
 window.EMS_WHATS_NEW = [
   {
+    "date": "2026-11-19",
+    "type": "model",
+    "title": "1 model added: gemini-4-neon",
+    "step": "model"
+  },
+  {
     "date": "2026-11-18",
     "type": "model",
     "title": "4 models added: gpt-6.2-astra, gpt-6.2-sol, mai-code-2 and 1 more",
