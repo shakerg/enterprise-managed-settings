@@ -168,6 +168,32 @@ test("overridable wrappers round-trip", () => {
   assert.deepEqual(EMS.buildSettings(state), src);
 });
 
+test("strictPluginOnlyCustomization round-trips booleans, category arrays, and overrides", () => {
+  const examples = [
+    { strictPluginOnlyCustomization: true },
+    { strictPluginOnlyCustomization: false },
+    { strictPluginOnlyCustomization: [] },
+    { strictPluginOnlyCustomization: ["mcp", "extensions"] },
+    { strictPluginOnlyCustomization: { overridable: true } },
+    { strictPluginOnlyCustomization: { overridable: ["skills", "agents"] } },
+  ];
+  examples.forEach((src) => assert.deepEqual(EMS.buildSettings(EMS.parseSettings(src)), src));
+
+  const state = EMS.parseSettings({ strictPluginOnlyCustomization: { overridable: ["mcp"] } });
+  assert.equal(EMS.hasOverridable(state), true);
+  assert.deepEqual(EMS.validate(state), []);
+});
+
+test("strictPluginOnlyCustomization summary and validation describe selected categories", () => {
+  const state = EMS.parseSettings({ strictPluginOnlyCustomization: { overridable: ["mcp", "extensions"] } });
+  assert.match(EMS.summarizeSettings(state), /Standalone customizations are restricted for these categories: `mcp`, `extensions`\. This is a team-overridable default\./);
+  assert.deepEqual(EMS.validate(state), []);
+
+  const invalid = EMS.parseSettings({ strictPluginOnlyCustomization: ["unknown"] });
+  assert.deepEqual(EMS.buildSettings(invalid), { strictPluginOnlyCustomization: ["unknown"] });
+  assert.ok(EMS.validate(invalid).some((issue) => issue.level === "error" && issue.step === "plugins"));
+});
+
 test("full sandbox userPolicy round-trips", () => {
   const src = {
     sandbox: {
