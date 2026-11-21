@@ -6,6 +6,13 @@
    scripts/update-models.js appends model entries automatically. Keep the JSON array valid. */
 window.EMS_WHATS_NEW = [
   {
+    "date": "2026-11-21",
+    "type": "setting",
+    "title": "Restrict standalone customization categories to plugins or managed settings",
+    "step": "plugins",
+    "key": "strictPluginOnlyCustomization"
+  },
+  {
     "date": "2026-11-19",
     "type": "model",
     "title": "1 model added: gemini-4-neon",

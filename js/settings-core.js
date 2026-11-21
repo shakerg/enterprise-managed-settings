@@ -17,6 +17,7 @@
   const MARKETPLACE_SOURCES = ["github", "git", "directory"];
   const STRICT_SOURCES = ["github", "git", "url", "npm", "file", "directory", "hostPattern", "pathPattern"];
   const MCP_MATCHERS = ["serverUrl", "serverCommand", "serverName"];
+  const STRICT_PLUGIN_CUSTOMIZATIONS = ["skills", "agents", "hooks", "mcp", "extensions"];
   const POLICY_GUIDANCE = [
     {
       id: "models",
@@ -79,6 +80,12 @@
       enabledPlugins: { managed: false, items: [] }, // {key, enabled}
       extraKnownMarketplaces: { managed: false, overridable: false, items: [] }, // {name, source:{...}, autoUpdate}
       strictKnownMarketplaces: { managed: false, overridable: false, items: [] }, // source objects
+      strictPluginOnlyCustomization: {
+        managed: false,
+        overridable: false,
+        mode: "selected",
+        categories: Object.fromEntries(STRICT_PLUGIN_CUSTOMIZATIONS.map((category) => [category, false])),
+      },
       allowedMcpServers: { managed: false, overridable: false, items: [] }, // {type, value}
       deniedMcpServers: { managed: false, items: [] },
       sandbox: {
@@ -139,6 +146,13 @@
   function unwrap(v) {
     if (isObj(v) && Object.keys(v).length === 1 && "overridable" in v) return { value: v.overridable, overridable: true };
     return { value: v, overridable: false };
+  }
+
+  function strictCustomizationCategories(customization) {
+    const categories = customization.categories || {};
+    return STRICT_PLUGIN_CUSTOMIZATIONS.filter((category) => categories[category]).concat(
+      Object.keys(categories).filter((category) => !STRICT_PLUGIN_CUSTOMIZATIONS.includes(category) && categories[category])
+    );
   }
 
   function setIf(obj, key, val) {
@@ -244,6 +258,18 @@
 
     if (s.strictKnownMarketplaces.managed) {
       out.strictKnownMarketplaces = wrap(s.strictKnownMarketplaces.items.map(buildSource), s.strictKnownMarketplaces.overridable);
+    }
+
+    const strictCustomizations = s.strictPluginOnlyCustomization;
+    if (strictCustomizations.managed) {
+      out.strictPluginOnlyCustomization = wrap(
+        strictCustomizations.mode === "all"
+          ? true
+          : strictCustomizations.mode === "none"
+            ? false
+            : strictCustomizationCategories(strictCustomizations),
+        strictCustomizations.overridable
+      );
     }
 
     const t = s.telemetry;
@@ -368,6 +394,7 @@
     const plugins = s.enabledPlugins;
     const extra = s.extraKnownMarketplaces;
     const strict = s.strictKnownMarketplaces;
+    const strictCustomizations = s.strictPluginOnlyCustomization;
     const pluginLines = [
       !plugins.managed
         ? ""
@@ -384,6 +411,15 @@
         : strict.items.length
           ? `Plugin installation is restricted to these marketplaces: ${strict.items.map(source).join("; ")}.${strict.overridable ? teamDefault : ""}`
           : `Plugin installation is locked to no listed marketplaces.${strict.overridable ? teamDefault : ""}`,
+      !strictCustomizations.managed
+        ? ""
+        : strictCustomizations.mode === "all"
+          ? `Standalone customizations are restricted for all supported categories.${strictCustomizations.overridable ? teamDefault : ""}`
+          : strictCustomizations.mode === "none"
+            ? `This setting adds no standalone customization restrictions.${strictCustomizations.overridable ? teamDefault : ""}`
+            : strictCustomizationCategories(strictCustomizations).length
+              ? `Standalone customizations are restricted for these categories: ${strictCustomizationCategories(strictCustomizations).map(code).join(", ")}.${strictCustomizations.overridable ? teamDefault : ""}`
+              : `No standalone customization categories are restricted.${strictCustomizations.overridable ? teamDefault : ""}`,
     ];
 
     const sandbox = s.sandbox;
@@ -584,6 +620,20 @@
       s.strictKnownMarketplaces = { managed: true, overridable: u.overridable, items: (Array.isArray(u.value) ? u.value : []).map(parseSource) };
     }
 
+    if (src.strictPluginOnlyCustomization !== undefined) {
+      const u = unwrap(src.strictPluginOnlyCustomization);
+      const customization = s.strictPluginOnlyCustomization;
+      customization.managed = true;
+      customization.overridable = u.overridable;
+      if (typeof u.value === "boolean") customization.mode = u.value ? "all" : "none";
+      else if (Array.isArray(u.value)) {
+        customization.mode = "selected";
+        u.value.forEach((category) => {
+          customization.categories[String(category)] = true;
+        });
+      } else customization.mode = "invalid";
+    }
+
     if (isObj(src.telemetry)) {
       const t = src.telemetry;
       const d = s.telemetry;
@@ -728,6 +778,15 @@
         add("warning", "plugins", "strictKnownMarketplaces is an empty array: plugin installation is completely locked down.");
       s.strictKnownMarketplaces.items.forEach((i, idx) => sourceIssues(i, `Strict marketplace #${idx + 1}`).forEach((m) => add("error", "plugins", m)));
     }
+    if (s.strictPluginOnlyCustomization.managed) {
+      const customization = s.strictPluginOnlyCustomization;
+      if (!["all", "none", "selected"].includes(customization.mode))
+        add("error", "plugins", "strictPluginOnlyCustomization must be true, false, or an array of supported categories.");
+      Object.keys(customization.categories).forEach((category) => {
+        if (customization.categories[category] && !STRICT_PLUGIN_CUSTOMIZATIONS.includes(category))
+          add("error", "plugins", `strictPluginOnlyCustomization category "${category}" is not supported.`);
+      });
+    }
 
     const checkMcp = (list, label) =>
       list.forEach((i, idx) => {
@@ -785,6 +844,7 @@
       ["deny", "ask", "allow"].some((k) => s.permissions[k].managed && s.permissions[k].overridable) ||
       (s.extraKnownMarketplaces.managed && s.extraKnownMarketplaces.overridable) ||
       (s.strictKnownMarketplaces.managed && s.strictKnownMarketplaces.overridable) ||
+      (s.strictPluginOnlyCustomization.managed && s.strictPluginOnlyCustomization.overridable) ||
       (s.allowedMcpServers.managed && s.allowedMcpServers.overridable) ||
       (s.sandbox.managed && s.sandbox.overridable)
     );

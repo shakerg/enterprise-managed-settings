@@ -143,7 +143,7 @@
     { id: "model", label: "Models", render: renderModel, keys: ["model", "autoTier"] },
     { id: "permissions", label: "Permissions", render: renderPermissions, keys: ["permissions"] },
     { id: "access", label: "Features & access", render: renderAccess, keys: ["features", "remoteControl", "forceRemoteSettingsRefresh", "communication"] },
-    { id: "plugins", label: "Plugins", render: renderPlugins, keys: ["enabledPlugins", "extraKnownMarketplaces", "strictKnownMarketplaces"] },
+    { id: "plugins", label: "Plugins", render: renderPlugins, keys: ["enabledPlugins", "extraKnownMarketplaces", "strictKnownMarketplaces", "strictPluginOnlyCustomization"] },
     { id: "mcp", label: "MCP servers", render: renderMcp, keys: ["allowedMcpServers", "deniedMcpServers"] },
     { id: "sandbox", label: "Sandbox", render: renderSandbox, keys: ["sandbox"] },
     { id: "telemetry", label: "Telemetry", render: renderTelemetry, keys: ["telemetry"] },
@@ -586,6 +586,14 @@
     const ep = state.enabledPlugins;
     const xm = state.extraKnownMarketplaces;
     const sm = state.strictKnownMarketplaces;
+    const spc = state.strictPluginOnlyCustomization;
+    const customizationCategories = [
+      ["skills", "Agent skills"],
+      ["agents", "Custom agents"],
+      ["hooks", "Hooks"],
+      ["mcp", "MCP servers"],
+      ["extensions", "Executable Copilot extensions (including canvas providers; not VS Code Marketplace extensions)"],
+    ];
     return `
       ${header(null, "Plugins &amp; marketplaces", "Require or block specific plugins, add approved marketplaces, and restrict where plugins can be installed from.")}
       ${stepIssuesHtml("plugins")}
@@ -639,6 +647,23 @@
           <div><button type="button" class="btn btn-sm" data-action="add-item" data-path="strictKnownMarketplaces.items" data-template="strict">${icon("plus")}Add allowed marketplace</button></div>`,
         overridable: { path: "strictKnownMarketplaces.overridable", checked: sm.overridable },
       })}
+      ${card({
+        title: "Customization source restrictions",
+        key: "strictPluginOnlyCustomization",
+        desc: "Require selected customization categories to come from eligible plugins or managed settings. This controls their source without disabling the capabilities.",
+        sup: "plugins",
+        toggle: { path: "strictPluginOnlyCustomization.managed", checked: spc.managed },
+        body: `${selectField("strictPluginOnlyCustomization.mode", [
+          ["all", "Restrict all categories (true)"],
+          ["selected", "Choose categories (array)"],
+          ["none", "No restrictions from this setting (false)"],
+        ], { label: "Restriction", rerender: true })}
+        ${spc.mode === "selected" ? `<div class="item-list">${customizationCategories
+          .map(([category, label]) => `<div class="tri-row"><div class="tri-row-text"><div class="label"><code>${category}</code></div><div class="hint">${label}</div></div>${switchCtl(`strictPluginOnlyCustomization.categories.${category}`, !!spc.categories[category], "Restrict", { muted: true })}</div>`)
+          .join("")}</div>` : ""}
+        <p class="hint">Restrictions from server-managed, device-managed, and policy-helper settings combine; any source can keep a category restricted. Device-managed settings include native MDM policies and deployed <code>managed-settings.json</code> files. Enterprise-team overrides apply only when an applicable replacement exists and cannot relax unwrapped enterprise or device-managed restrictions. In VS Code, this applies only to Copilot sessions using Agent Host; do not rely on it for other session types.</p>`,
+        overridable: { path: "strictPluginOnlyCustomization.overridable", checked: spc.overridable },
+      })}
     `;
   }
 
@@ -663,9 +688,10 @@
     const a = state.allowedMcpServers;
     const d = state.deniedMcpServers;
     return `
-      ${header(null, "MCP servers", "Allowlist and denylist Model Context Protocol servers. Deny always wins over allow. First-party Copilot servers can't be blocked.")}
+      ${header(null, "MCP servers", "Allowlist and denylist Model Context Protocol servers. Deny always wins over allow. Trusted first-party servers are exempt from these lists.")}
       ${stepIssuesHtml("mcp")}
       ${policyNotesHtml("mcp")}
+      ${callout("info", "In Copilot CLI, set <code>allowManagedMcpServersOnly</code> to <code>true</code> in MDM managed settings to limit eligible servers to the managed allowlist, servers from managed or force-enabled plugins, and fixed managed-MCP deployments. User or workspace allowlists cannot broaden that policy; <code>deniedMcpServers</code> still applies. The account's Copilot MCP policy still applies to trusted first-party servers. If that policy disables MCP, the built-in GitHub MCP server does not start.")}
       ${card({
         title: "Matcher reference",
         body: `<div style="display:grid; gap:6px; font-size: var(--fs-sm); color: var(--text-muted)">
@@ -686,7 +712,7 @@
       ${card({
         title: "Denied MCP servers",
         key: "deniedMcpServers",
-        desc: "Servers that are always blocked, even if they match the allowlist.",
+        desc: "Servers that are always blocked, even if they match the allowlist. Trusted first-party servers are exempt from these deny rules; Copilot CLI account policy still applies to them.",
         sup: "mcp",
         toggle: { path: "deniedMcpServers.managed", checked: d.managed },
         body: mcpList("deniedMcpServers.items"),
