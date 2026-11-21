@@ -27,6 +27,7 @@ For instructions on creating the file, see [Getting started with enterprise-mana
 | `enabledPlugins`                             | Enables or disables specific plugins by key                                                                                                                                                                                                                  |
 | `extraKnownMarketplaces`                     | Adds plugin marketplaces that users can access                                                                                                                                                                                                               |
 | `strictKnownMarketplaces`                    | Restricts plugin installation to explicitly listed marketplaces                                                                                                                                                                                              |
+| `strictPluginOnlyCustomization`              | Requires selected customization categories to come from eligible plugins or managed settings                                                                                                                                                                 |
 | `telemetry`                                  | Configures OpenTelemetry export, routing Copilot usage data to a collector of your choice                                                                                                                                                                    |
 | `remoteControl`                              | Restricts whether sessions hosted on this device can be remotely controlled, based on the controlling client's SSO authorization status for the listed organizations. Doesn't affect the user's ability to remotely control sessions hosted on other devices |
 | `forceRemoteSettingsRefresh`                 | Requires a fresh server-managed settings fetch on client startup                                                                                                                                                                                             |
@@ -279,6 +280,64 @@ This key is overridable for enterprise teams. Wrap the complete allowlist in `ov
 
 Use a regular array in the enterprise team file to replace the default allowlist. Omitting the key retains the enterprise default. An explicit empty array, `[]`, means complete lockdown, not an unmanaged policy.
 
+## strictPluginOnlyCustomization
+
+Choose which customization categories must come from eligible plugins or managed settings instead of standalone user, workspace, or project configuration. This controls their sources without disabling the capabilities entirely. Other policies still determine which customizations can load.
+
+The setting accepts these values:
+
+* `true`: Restricts all five supported categories.
+* `false` or omitted: Adds no restriction from this key.
+* An array: Restricts only the listed categories.
+
+The supported category names are:
+
+<div class="ghd-tool rowheaders">
+
+| Category     | Customizations                                                                                                    |
+| ------------ | ----------------------------------------------------------------------------------------------------------------- |
+| `skills`     | Agent skills                                                                                                      |
+| `agents`     | Custom agents                                                                                                     |
+| `hooks`      | Hooks                                                                                                             |
+| `mcp`        | MCP servers                                                                                                       |
+| `extensions` | Executable Copilot extensions, including canvas providers. This does not refer to VS Code Marketplace extensions. |
+
+</div>
+
+For `extensions`, the restriction also blocks standalone extensions loaded from session-state directories. There is no separate category for canvases.
+
+For example, restrict standalone MCP servers and executable extensions while leaving skills, agents, and hooks unrestricted by this key:
+
+```json
+{
+  "strictPluginOnlyCustomization": ["mcp", "extensions"]
+}
+```
+
+For server-managed deployments, wrap the value in `{ "overridable": VALUE }` to allow the following managed settings to replace the enterprise default:
+
+* Enterprise-team settings
+* Organization settings
+* Organization-team settings
+
+These sources can replace the default only when they apply to the user. Without an applicable replacement, the default remains. None of these layers can relax an unwrapped enterprise restriction.
+
+The server resolves the wrapper before sending the effective value to clients. User settings and repository settings cannot relax that value.
+
+Restrictions from overlapping enterprise team settings are combined. A category restricted by any matching team stays restricted, even if another team sets the key to `false` or omits that category.
+
+After the server resolves overrides, restrictions from server-managed, device-managed, and policy-helper settings are combined. Device-managed settings include both native MDM policies and administrator-deployed `managed-settings.json` files.
+
+A category restricted by any of these sources stays restricted, even if another source sets the key to `false` or omits that category. An enterprise team override cannot relax a device-managed restriction.
+
+For an example that allows a designated team to develop standalone MCP servers, see [Overriding enterprise-managed settings for enterprise teams](/en/enterprise-cloud@latest/copilot/how-tos/administer-copilot/manage-for-enterprise/use-managed-settings/override-settings-for-teams#allow-an-mcp-development-team-to-use-standalone-servers).
+
+Plugins can remain eligible even if the enterprise does not require them through `enabledPlugins`. Use `strictKnownMarketplaces` separately to restrict marketplace sources. For a combined example, see [Managing plugin marketplaces and plugins with enterprise-managed settings](/en/enterprise-cloud@latest/copilot/how-tos/administer-copilot/manage-for-enterprise/use-managed-settings/manage-plugin-marketplaces-and-plugins#restrict-standalone-customizations).
+
+MCP server allowlists and denylists, stricter managed-only policies, permissions, and sandbox restrictions still apply. Allowing a customization's source does not grant it additional access.
+
+In VS Code, this behavior applies to Copilot sessions that use Agent Host. Do not rely on this setting to enforce the same restrictions in other session types.
+
 ## model
 
 Sets your preferred model as the default for new conversations. This lets you choose the default model that best fits your enterprise's workflows. Users can still select a different model on a per-conversation basis.
@@ -458,6 +517,8 @@ Omit this key entirely to allow all servers, subject to any entries in `deniedMc
 
 When multiple settings sources define `allowedMcpServers`, the effective allowlist is the intersection of all sources. A server must be permitted by every source to run.
 
+In Copilot CLI, set the `allowManagedMcpServersOnly` key in MDM managed settings to `true` to restrict server eligibility to the managed `allowedMcpServers` allowlist, servers from managed or force-enabled plugins, and any fixed managed-MCP deployment. Lower-precedence user or workspace allowlist entries cannot broaden this policy. `deniedMcpServers` still applies, and trusted first-party servers remain exempt.
+
 Each entry must contain exactly one matcher property.
 
 | Property        | Matching behavior                                                                                                                                                                                                                                                                                                                                                                         | Applicable servers                                                                                                                         |
@@ -483,7 +544,9 @@ Before comparing a `serverUrl` pattern with a server URL, the client normalizes 
 
 Defines MCP servers that are unconditionally blocked. A server matching any entry is blocked even if it also matches an entry in `allowedMcpServers`. Deny rules always take precedence over allow rules.
 
-First-party Copilot servers, such as the built-in GitHub MCP server, are exempt from deny rules and cannot be blocked.
+First-party Copilot servers, such as the built-in GitHub MCP server, are exempt from these deny rules.
+
+In Copilot CLI, the account's Copilot MCP policy still applies to trusted first-party servers despite their exemption from `allowedMcpServers` and `deniedMcpServers`. If that policy disables MCP, the built-in GitHub MCP server does not start.
 
 When multiple settings sources define `deniedMcpServers`, the effective denylist is the union of all sources. A server blocked by any source is blocked for all.
 
